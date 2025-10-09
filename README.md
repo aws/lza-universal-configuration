@@ -2,6 +2,20 @@
 
 The LZA Universal Configuration provides enterprise-ready configuration templates that utilize the [Landing Zone Accelerator on AWS](https://aws.amazon.com/solutions/implementations/landing-zone-accelerator-on-aws/) (LZA) to establish secure, scalable, and well-architected multi-account AWS environments. It enables rapid deployment of baseline environments supporting multiple global compliance frameworks and industry-specific requirements.
 
+## Getting Started
+
+**To get started with this project, please refer to the comprehensive documentation in the [`docs/`](./docs) directory.** The documentation is organized in a logical sequence to guide you through understanding, deploying, and operating your LZA environment:
+
+1. **[Overview](./docs/01-Overview)** - Architecture overview and design principles
+2. **[Getting Started](./docs/02-Getting-Started)** - Deployment prerequisites and initial setup procedures
+3. **[Management & Governance](./docs/03-Management-Governance)** - Organization structure and account management
+4. **[Security, Identity & Compliance](./docs/04-Security-Identity-Compliance)** - Security controls and compliance frameworks
+5. **[Networking](./docs/05-Networking)** - Network architecture patterns and connectivity
+6. **[Logging & Monitoring](./docs/06-Logging-Monitoring)** - Centralized logging and monitoring setup
+7. **[Operations](./docs/07-Operations)** - Day-to-day operational procedures and management tasks
+
+We recommend reviewing the documentation in order, starting with the Overview and Getting Started sections.
+
 ## Specific Regional and Industry Guidelines
 
 For detailed information about supported regions and industry-specific configurations, including compliance frameworks, regulatory requirements, and implementation guidance, please refer to:
