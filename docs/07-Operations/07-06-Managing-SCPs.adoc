@@ -34,7 +34,7 @@ LZA joins policy definition with policy targets in a universal configuration str
 
 === SCP Organization in LZA
 
-LZA defines SCPs in separate JSON files that you reference in the `policySets` section of the `iam-config.yaml` file. This modular approach provides several advantages:
+LZA defines SCPs in separate JSON files that you reference in the `policySets` section of the `organization-config.yaml.yaml` file. This modular approach provides several advantages:
 
 * *Logical Grouping*: Organize your SCPs into separate policy files grouped by purpose and common goal
 * *Maintainability*: One SCP per file makes maintenance and version control more manageable
@@ -104,8 +104,8 @@ Within your repository structure, consider maintaining SCPs in a dedicated direc
 }
 ----
 
-4. *Configure in IAM Config*:
-   * Add a reference to your new SCP in the `policySets` section of the `iam-config.yaml` file
+4. *Configure in Organization Config*:
+   * Add a reference to your new SCP in the `policySets` section of the `organization-config.yaml` file
    * Set `deploymentTargets` initially to test accounts using the `accounts` option
    * Optionally limit regional deployment with `excludedRegions` parameter
    * Example configuration:
