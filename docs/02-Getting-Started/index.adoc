@@ -135,3 +135,7 @@ globalReplacements:
 After updating the mandatory configuration files, push all the changes to your Configuration Repository Location.
 
 TIP: Refer to the link:https://docs.aws.amazon.com/solutions/latest/landing-zone-accelerator-on-aws/step-3.-update-the-configuration-files.html[Configuration Repository Location] documentation for specific instructions based on your chosen repository method.
+
+=== AWS Transform
+
+Optionally, you can use https://docs.aws.amazon.com/transform/latest/userguide/transform-vmware-migrate-network.html[AWS Transform] to make configuration files.  AWS Transform migrates VMware networks to AWS by translating your source environment configuration into AWS-equivalent network resources. 
