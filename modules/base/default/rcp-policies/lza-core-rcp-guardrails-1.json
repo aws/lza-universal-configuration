@@ -109,9 +109,7 @@
             "Effect": "Deny",
             "Principal": "*",
             "Action": [
-                "sts:AssumeRole",
-                "sts:AssumeRoleWithSAML",
-                "sts:AssumeRoleWithWebIdentity"
+                "sts:AssumeRole"
             ],
             "Resource": "*",
             "Condition": {

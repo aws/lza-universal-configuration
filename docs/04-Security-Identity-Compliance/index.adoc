@@ -728,7 +728,7 @@ The LZA Universal Configuration deploys a single RCP (`lza-core-rcp-guardrails-1
 Four statements deny direct access by principals outside the AWS Organization, covering the full set of RCP-supported services:
 
 *STS (`GRSTSDPB`)*::
-Prevents external principals from assuming IAM roles in member accounts via `AssumeRole`, `AssumeRoleWithSAML`, or `AssumeRoleWithWebIdentity`. This closes the most critical identity perimeter gap—an overly permissive role trust policy could otherwise allow any AWS principal to assume a role in your accounts.
+Prevents external principals (outside the AWS Organization) from assuming IAM roles in member accounts via `sts:AssumeRole`. This closes a critical identity perimeter gap: an overly permissive role trust policy could otherwise allow a principal outside your organization to assume a role in your accounts.
 
 *S3 (`GRS3DPB`)*::
 Prevents external principals from writing to, deleting from, or modifying S3 buckets and replication configuration.

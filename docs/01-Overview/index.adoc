@@ -346,7 +346,7 @@ The LZA Universal Configuration deploys a single RCP (`lza-core-rcp-guardrails-1
 
 |`GRSTSDPB`
 |Identity perimeter — STS
-|External principals (outside the AWS Organization) from assuming IAM roles in member accounts via `AssumeRole`, `AssumeRoleWithSAML`, or `AssumeRoleWithWebIdentity`
+|External principals (outside the AWS Organization) from assuming IAM roles in member accounts via `sts:AssumeRole`
 
 |`GRSQSDPB`
 |Resource perimeter — SQS
