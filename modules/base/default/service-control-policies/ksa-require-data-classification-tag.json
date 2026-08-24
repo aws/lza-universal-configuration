@@ -1,0 +1,33 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyCreateWithoutDataClassification",
+      "Effect": "Deny",
+      "Action": [
+        "s3:CreateBucket",
+        "ec2:RunInstances",
+        "rds:CreateDBInstance",
+        "rds:CreateDBCluster",
+        "dynamodb:CreateTable",
+        "elasticfilesystem:CreateFileSystem",
+        "lambda:CreateFunction"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "aws:RequestTag/DataClassification": "true"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*",
+            "arn:${PARTITION}:iam::*:role/AWSControlTowerExecution",
+            "arn:${PARTITION}:iam::*:role/stacksets-exec-*"
+          ]
+        }
+      }
+    }
+  ]
+}

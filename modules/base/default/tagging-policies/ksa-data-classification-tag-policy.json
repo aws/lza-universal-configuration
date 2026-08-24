@@ -1,0 +1,23 @@
+{
+  "tags": {
+    "DataClassification": {
+      "tag_key": {
+        "@@assign": "DataClassification"
+      },
+      "tag_value": {
+        "@@assign": ["TopSecret", "Secret", "Confidential", "Internal", "Public"]
+      },
+      "enforced_for": {
+        "@@assign": [
+          "s3:bucket",
+          "ec2:instance",
+          "ec2:volume",
+          "rds:db",
+          "dynamodb:table",
+          "elasticfilesystem:file-system",
+          "lambda:function"
+        ]
+      }
+    }
+  }
+}

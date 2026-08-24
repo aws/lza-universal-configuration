@@ -1,0 +1,129 @@
+[#ksa]
+= Kingdom of Saudi Arabia (KSA)
+
+== Introduction
+
+This guidance is relevant for organizations in the Kingdom of Saudi Arabia (KSA) managing workloads subject to the National Cybersecurity Authority (NCA) frameworks and the Personal Data Protection Law (PDPL). It may be applicable to government entities, financial institutions, energy and critical national infrastructure operators, healthcare providers, telecommunications companies, and other organizations required to align their cloud environments with KSA cybersecurity and data protection requirements.
+
+It provides recommendations for deploying the LZA Universal Configuration with targeted enhancements that help address technical requirements in the NCA link:https://nca.gov.sa/en/regulatory-documents/controls-list/ecc/[Essential Cybersecurity Controls (ECC-2:2024)], the NCA link:https://nca.gov.sa/en/regulatory-documents/controls-list/ccc/[Cloud Cybersecurity Controls (CCC-2:2024)], and the link:https://sdaia.gov.sa/en/SDAIA/about/Documents/Personal%20Data%20English%20V2-23April2023-%20Reviewed-.pdf[Personal Data Protection Law (PDPL)].
+
+The KSA guidance builds upon the Universal Configuration baseline with additional preventive controls for data residency, identity governance, data classification, and extended backup retention.
+
+[NOTE]
+This guidance describes how AWS services can be configured to help address NCA and PDPL technical control requirements. It is not a compliance attestation, certification, or warranty by AWS. Determining whether the configuration meets your specific regulatory requirements is your responsibility. For AWS-published evidence of controls addressed by the Universal Configuration, refer to the LZA Compliance Workbook on link:https://aws.amazon.com/artifact/[AWS Artifact].
+
+== Target Audience
+
+* KSA government entities and critical national infrastructure operators
+* Financial institutions regulated by SAMA
+* Healthcare, energy, and telecommunications providers operating under NCA frameworks
+* Organizations processing personal data subject to PDPL
+* Cloud architects deploying AWS infrastructure for Saudi-based workloads
+
+== How the Universal Configuration maps to NCA and PDPL
+
+The NCA frameworks contain 283 controls (108 ECC + 175 CCC) and the PDPL adds 40 requirements. These split across four responsibility categories:
+
+[cols="1,1,3", options="header"]
+|===
+| Category | Count | Description
+| Addressable by AWS | ~93 | Technical controls implemented with AWS services. Of these, 57 (31 ECC + 26 CCC) are addressed by the Universal Configuration baseline, as validated in the LZA Compliance Workbook on AWS Artifact.
+| Partial | ~25 | AWS covers the technical portion; you own the organizational aspects.
+| Your organizational responsibility | ~30 | Non-technical controls no cloud platform addresses (governance, HR, training, email, endpoint, penetration testing).
+| Inherited from AWS | ~135 | AWS responsibility under the shared responsibility model (131 CCC CSP controls + physical security); evidence via AWS Artifact.
+|===
+
+The complete control mapping is available in the link:./resources/NCA-AWS-Control-Mapping.xlsx[NCA control mapping] and the implementation sequence in the link:./resources/NCA-PDPL-Implementation-Backlog.xlsx[implementation backlog].
+
+=== Architecture
+
+The KSA configuration uses the base Universal Configuration account, OU, and hub-and-spoke network architecture without modification. It adds preventive policies (SCPs, a tagging policy, and a backup policy) on top of that baseline rather than changing the architecture, so no separate architecture diagram is required. Refer to the base Universal Configuration architecture for the account and OU structure and network topology.
+
+[NOTE]
+While the LZA Universal Configuration implements AWS security best practices, customers are responsible for determining whether the configuration meets their specific regulatory requirements.
+
+== What the baseline already provides
+
+Deploying the Universal Configuration provides the 57-control baseline at the infrastructure level, including:
+
+* Multi-account structure with Security and Infrastructure OUs and centralized logging (addresses ECC 2-1 asset management, ECC governance controls)
+* Amazon GuardDuty, AWS Security Hub (FSBP, CIS v3.0.0, NIST 800-53), Amazon Inspector, Amazon Macie (addresses ECC 2-10, ECC 2-12; supports PDPL)
+* AWS CloudTrail organization trail and AWS Config rules (addresses ECC 2-12 audit trail)
+* IAM Access Analyzer and IAM password policy (addresses ECC 2-2)
+* EBS and S3 encryption defaults (addresses ECC 2-8)
+* Core RCP data-perimeter guardrails and LZA self-protection SCPs
+
+You do not need to re-implement these. The KSA enhancements below address NCA requirements the baseline does not cover.
+
+== Additional Controls for KSA
+
+The KSA configuration adds the following to the baseline. These are applied through the KSA replacements and additional policy files.
+
+=== Region restriction (ECC 2-5, ECC 2-7, CCC 2-6-T, PDPL Art. 29)
+
+The Universal Configuration relies on AWS Control Tower Regional Deny for region restriction. For organizations that require an explicit, defense-in-depth region deny, the KSA configuration adds a service control policy that denies all actions outside approved AWS Regions, exempting global services (IAM, STS, Route 53, CloudFront, AWS KMS, Organizations).
+
+[NOTE]
+AWS Organizations allows up to 10 SCPs attached per OU or account. Combined with the baseline's SCPs and AWS Control Tower Regional Deny, the KSA SCPs fit within this limit. Verify your attachment plan against the per-OU count, and consider whether the explicit region-deny SCP is needed in addition to Control Tower Regional Deny.
+
+=== Data residency (ECC 2-7, PDPL Art. 29)
+
+A service control policy denies S3 cross-region replication, VPN and Global Accelerator egress paths, and creation of publicly accessible Amazon RDS instances, keeping data within the approved Region.
+
+=== Identity governance (ECC 2-2)
+
+The baseline denies `iam:CreateUser`. The KSA configuration broadens this to deny IAM access key creation, login profiles, and user policy attachment, forcing all human access through AWS IAM Identity Center (federated).
+
+=== Data classification (ECC 2-1-5, ECC 2-7, PDPL Art. 6)
+
+A tagging policy enforces valid `DataClassification` tag values (TopSecret, Secret, Confidential, Internal, Public). Optionally, a service control policy denies resource creation without the `DataClassification` tag, making classification a deployment-time requirement.
+
+[NOTE]
+Tagging policies enforce tag *value correctness*, not tag *presence*. Use the optional tag-presence SCP for presence enforcement, and roll it out to a test OU first as it will block resource creation from pipelines that do not include the tag.
+
+=== Extended backup retention (ECC 2-9)
+
+ECC 2-9 requires defined backup and recovery requirements but does not prescribe a retention period. The baseline provides 1–2 year retention. The KSA backup policy adds NinetyDay and Yearly schedules with configurable retention. Set retention values based on your documented requirements; longer retention increases storage cost.
+
+== Customization for KSA
+
+When deploying the LZA Universal Configuration for KSA, evaluate and update the following:
+
+* Set your approved AWS Region(s) as home and enabled regions
+* Replace region, backup vault, and backup role placeholders in the KSA policy files
+* Confirm the number of SCPs attached per OU stays within the limit of 10 when adding the KSA SCPs alongside the baseline and Control Tower Regional Deny
+* Configure IAM Identity Center federation to your identity provider with MFA
+* Set backup retention periods to your documented NCA and business requirements
+* Confirm the baseline RCP data-perimeter guardrails meet your data residency requirements; the KSA configuration relies on these rather than adding duplicate RCPs
+
+== Deployment
+
+=== Prerequisites
+
+* A working Universal Configuration deployment
+* Authority to apply service control policies, tagging policies, and backup policies at the AWS Organizations level
+* An approved AWS Region for your KSA workloads
+
+=== Apply the KSA configuration
+
+1. Deploy the Universal Configuration baseline as documented.
+2. Apply the KSA replacements (`replacements-for-ksa.yaml`) to add the KSA service control policies, tagging policy, and backup policy to your `organization-config.yaml`, and copy the KSA policy JSON files into your `service-control-policies/`, `tagging-policies/`, and `backup-policies/` folders.
+3. Replace placeholders (approved Region, backup vault name, backup role name, retention days) with your values.
+4. Run the LZA pipeline.
+5. Address the organizational controls in the control mapping outside of AWS.
+
+== Post-Deployment Considerations
+
+After deployment, the technical baseline plus KSA enhancements are in place. Address the ~30 organizational controls (cybersecurity strategy, governance, HR security, awareness and training, email protection, endpoint management, penetration testing, and periodic audits) through your organizational program. These are documented in the control mapping.
+
+== Additional Resources
+
+* link:https://nca.gov.sa/en/regulatory-documents/controls-list/ecc/[NCA Essential Cybersecurity Controls (ECC-2:2024)]
+* link:https://nca.gov.sa/en/regulatory-documents/controls-list/ccc/[NCA Cloud Cybersecurity Controls (CCC-2:2024)]
+* link:https://sdaia.gov.sa/en/SDAIA/about/Documents/Personal%20Data%20English%20V2-23April2023-%20Reviewed-.pdf[Personal Data Protection Law (PDPL)]
+* link:https://aws.amazon.com/blogs/security/introducing-the-landing-zone-accelerator-on-aws-universal-configuration-and-lza-compliance-workbook/[LZA Universal Configuration and Compliance Workbook]
+* link:https://aws.amazon.com/artifact/[AWS Artifact]
+
+'''
+
+link:../index.adoc[Back to Region and Industry Guidance]

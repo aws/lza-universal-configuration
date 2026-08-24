@@ -1,0 +1,84 @@
+{
+  "plans": {
+    "KSA_NinetyDay_Plan": {
+      "regions": {
+        "@@append": ${ACCEL_LOOKUP::CUSTOM:EnabledRegions}
+      },
+      "rules": {
+        "Backup_Rule": {
+          "schedule_expression": {
+            "@@assign": "cron(0 5 1 */3 ? *)"
+          },
+          "lifecycle": {
+            "move_to_cold_storage_after_days": {
+              "@@assign": "90"
+            },
+            "delete_after_days": {
+              "@@assign": "365"
+            }
+          },
+          "target_backup_vault_name": {
+            "@@assign": "${ACCEL_LOOKUP::CUSTOM:AcceleratorPrefix}-BackupVault"
+          }
+        }
+      },
+      "selections": {
+        "tags": {
+          "Backup_Assignment": {
+            "iam_role_arn": {
+              "@@assign": "arn:${PARTITION}:iam::$account:role/${ACCEL_LOOKUP::CUSTOM:AcceleratorPrefix}-Backup-Role"
+            },
+            "tag_key": {
+              "@@assign": "BackupPlan"
+            },
+            "tag_value": {
+              "@@assign": [
+                "NinetyDay"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "KSA_Yearly_Plan": {
+      "regions": {
+        "@@append": ${ACCEL_LOOKUP::CUSTOM:EnabledRegions}
+      },
+      "rules": {
+        "Backup_Rule": {
+          "schedule_expression": {
+            "@@assign": "cron(0 5 1 1 ? *)"
+          },
+          "lifecycle": {
+            "move_to_cold_storage_after_days": {
+              "@@assign": "365"
+            },
+            "delete_after_days": {
+              "@@assign": "2555"
+            }
+          },
+          "target_backup_vault_name": {
+            "@@assign": "${ACCEL_LOOKUP::CUSTOM:AcceleratorPrefix}-BackupVault"
+          }
+        }
+      },
+      "selections": {
+        "tags": {
+          "Backup_Assignment": {
+            "iam_role_arn": {
+              "@@assign": "arn:${PARTITION}:iam::$account:role/${ACCEL_LOOKUP::CUSTOM:AcceleratorPrefix}-Backup-Role"
+            },
+            "tag_key": {
+              "@@assign": "BackupPlan"
+            },
+            "tag_value": {
+              "@@assign": [
+                "Yearly"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -26,6 +26,12 @@ For European organizations with data sovereignty requirements deploying workload
 
 link:european-sovereign-cloud/index.adoc[View European Sovereign Cloud Guidance →]
 
+=== Kingdom of Saudi Arabia (KSA)
+
+For organizations in Saudi Arabia aligning with the National Cybersecurity Authority (NCA) frameworks (ECC-2:2024, CCC-2:2024) and the Personal Data Protection Law (PDPL). Covers control mapping, region restriction, data residency, identity governance, data classification, and extended backup retention on top of the Universal Configuration baseline.
+
+link:ksa/index.adoc[View KSA Guidance →]
+
 '''
 
 link:../index.adoc[Back to Documentation Home]

@@ -1,0 +1,81 @@
+# Replacements for Kingdom of Saudi Arabia (KSA)
+#
+# Unlike the AWS GovCloud (US) and AWS European Sovereign Cloud replacements — which are
+# largely subtractive (they disable services not available in those partitions) — the KSA
+# replacements are additive. KSA deploys in a standard commercial Region where all services
+# are available, so nothing is removed. These replacements insert KSA-specific preventive
+# controls into the Universal Configuration to help address NCA (ECC-2:2024, CCC-2:2024) and
+# PDPL technical requirements.
+#
+# Applied against the base UC config files before deployment with scripts/config-replacer.js.
+# The KSA policy files referenced below must be copied into the corresponding config folders
+# (service-control-policies/, tagging-policies/, backup-policies/).
+#
+# Each line is quoted so config-replacer.js (cleanQuotes) preserves the exact indentation.
+
+- filename: organization-config.yaml
+  items:
+    # KSA: Insert region restriction, data residency, and identity governance SCPs
+    # immediately before the Quarantine SCP. SCP limit is 10 per OU.
+    - pattern: |
+        '  - name: "{{ AcceleratorPrefix }}-Quarantine-New-Object"'
+      replacement: |
+        '  - name: "{{ AcceleratorPrefix }}-KSA-Region-Restriction"'
+        "    description: >"
+        "      KSA: Denies actions outside approved AWS Regions (ECC 2-5, 2-7, CCC 2-6-T, PDPL Art. 29)."
+        "    policy: service-control-policies/ksa-region-restriction.json"
+        "    type: customerManaged"
+        "    deploymentTargets:"
+        "      organizationalUnits:"
+        "        - Workloads"
+        '  - name: "{{ AcceleratorPrefix }}-KSA-Data-Residency"'
+        "    description: >"
+        "      KSA: Denies S3 cross-region replication, VPN/Global Accelerator egress, and public RDS (ECC 2-7, PDPL Art. 29)."
+        "    policy: service-control-policies/ksa-data-residency.json"
+        "    type: customerManaged"
+        "    deploymentTargets:"
+        "      organizationalUnits:"
+        "        - Workloads"
+        '  - name: "{{ AcceleratorPrefix }}-KSA-Identity-Governance"'
+        "    description: >"
+        "      KSA: Blocks IAM user creation and direct access, forcing federated identity (ECC 2-2)."
+        "    policy: service-control-policies/ksa-identity-governance.json"
+        "    type: customerManaged"
+        "    deploymentTargets:"
+        "      organizationalUnits:"
+        "        - Workloads"
+        '  - name: "{{ AcceleratorPrefix }}-Quarantine-New-Object"'
+
+    # KSA: Insert the DataClassification tagging policy before the S3TagPolicy entry.
+    - pattern: |
+        "  - name: S3TagPolicy"
+      replacement: |
+        "  - name: KsaDataClassificationTagPolicy"
+        "    description: KSA Data Classification Tagging Policy (ECC 2-1-5, 2-7, PDPL Art. 6)"
+        "    policy: tagging-policies/ksa-data-classification-tag-policy.json"
+        "    deploymentTargets:"
+        "      organizationalUnits:"
+        "        - Infrastructure"
+        "        - Workloads"
+        "  - name: S3TagPolicy"
+
+    # KSA: Insert the extended backup plan (NinetyDay + Yearly) before the baseline backup policy.
+    - pattern: |
+        '  - name: "{{ AcceleratorPrefix }}-BackupPolicy"'
+      replacement: |
+        '  - name: "{{ AcceleratorPrefix }}-KSA-Extended-BackupPolicy"'
+        "    description: KSA Extended Backup Policy - NinetyDay and Yearly schedules (ECC 2-9). Adjust retention to your requirements."
+        "    policy: backup-policies/ksa-extended-backup-plan.json"
+        "    deploymentTargets:"
+        "      organizationalUnits:"
+        "        - Infrastructure"
+        "        - Workloads"
+        '  - name: "{{ AcceleratorPrefix }}-BackupPolicy"'
+
+- filename: tagging-policies/org-tag-policy.json
+  items:
+    # KSA: Extend the baseline BackupPlan tag values to include the KSA schedules.
+    - pattern: |
+        '        "@@assign": ["Hourly", "Daily", "Weekly", "Monthly"]'
+      replacement: |
+        '        "@@assign": ["Hourly", "Daily", "Weekly", "Monthly", "NinetyDay", "Yearly"]'
