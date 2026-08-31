@@ -716,7 +716,6 @@ cloudWatch:
 # - Control Tower enables AWS Config across all enrolled accounts
 awsConfig:
   enableConfigurationRecorder: true # Enables configuration recorder
-  enableDeliveryChannel: true # Enables configuration change delivery
   useServiceLinkedRole: true # Enables use of Config service linked role
   ruleSets:
     # All account deployments
