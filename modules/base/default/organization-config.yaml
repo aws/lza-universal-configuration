@@ -24,7 +24,6 @@ declarativePolicies:
       Declarative policies for VPC Block Public Access.
       Attached at account level for granular control as some accounts within OUs require exemptions.
     policy: declarative-policies/lza-core-vpc-block-public-access.json
-    type: customerManaged
     deploymentTargets:
       organizationalUnits:
         - Security
