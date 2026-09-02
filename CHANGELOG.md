@@ -8,13 +8,19 @@ We highly recommend that you keep your environments up to date by upgrading to t
 
 When applying updates, review the changes in this release alongside your current configuration to decide which features from this version to adopt.
 
-## [1.3.1] - 2026-08-22
+## [1.3.1] - 2026-09-02
 
 ### Bug Fixes
 
 - **STS Data Perimeter RCP (`GRSTSDPB`)**: Limited the STS identity perimeter statement to `sts:AssumeRole`. This restores federated sign-in to accounts in the targeted OUs while still denying role assumption from principals outside the organization.
 
   **Upgrade Notes**: This change only removes actions from an existing Deny, so no reconfiguration is required. The statement continues to deny `sts:AssumeRole` from principals outside your organization, so review your accounts for any such access before deploying. IAM Access Analyzer external access findings can help you identify roles that external principals can assume. If a principal outside your organization requires access, you can allow it by adding its account ID to the `aws:PrincipalAccount` condition in the `GRSTSDPB` statement.
+
+### Improvements
+
+- **AWS Config Delivery Channel**: Removed the deprecated `enableDeliveryChannel` field from `security-config.yaml`. The delivery channel continues to be provisioned by `enableConfigurationRecorder`. No change to the deployed environment.
+
+- **Declarative Policy Schema Alignment**: Removed the unsupported `type` field from the VPC Block Public Access declarative policy in `organization-config.yaml` to align with the LZA schema. No change to the deployed policy.
 
 ## [1.3.0] - 2026-07-31
 
