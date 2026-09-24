@@ -59,7 +59,11 @@
       "Sid": "GRCFM",
       "Effect": "Deny",
       "Action": [
-        "cloudformation:Delete*"
+        "cloudformation:CreateChangeSet",
+        "cloudformation:Delete*",
+        "cloudformation:ExecuteChangeSet",
+        "cloudformation:SetStackPolicy",
+        "cloudformation:UpdateStack"
       ],
       "Resource": "arn:${PARTITION}:cloudformation:*:*:stack/${ACCELERATOR_PREFIX}*",
       "Condition": {

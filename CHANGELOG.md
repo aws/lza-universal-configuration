@@ -8,6 +8,14 @@ We highly recommend that you keep your environments up to date by upgrading to t
 
 When applying updates, review the changes in this release alongside your current configuration to decide which features from this version to adopt.
 
+## [1.3.2] - 2026-09-23
+
+### Bug Fixes
+
+- **CloudFormation Stack Guardrail SCP (`GRCFM`)**: Extended the `GRCFM` deny statement to cover CloudFormation stack update actions in addition to the existing `cloudformation:Delete*`. This prevents non-accelerator principals from updating, rolling back, or replacing accelerator-managed stacks.
+
+  **Upgrade Notes**: The LZA pipeline runs under `AWSAccelerator-*` roles that are already in the exclusion list, so normal deployment is unaffected.
+
 ## [1.3.1] - 2026-09-02
 
 ### Bug Fixes
