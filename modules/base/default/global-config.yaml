@@ -4,7 +4,7 @@
 # https://awslabs.github.io/landing-zone-accelerator-on-aws/latest/user-guide/config/#global-configuration    #
 ###############################################################################################################
 
-# LZA Universal Configuration v1.3.1 is based on LZA v1.16.1
+# LZA Universal Configuration v1.3.2 is based on LZA v1.16.3
 
 homeRegion: "{{ HomeRegion }}"
 # Add a region based on your requirements

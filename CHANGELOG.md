@@ -8,7 +8,7 @@ We highly recommend that you keep your environments up to date by upgrading to t
 
 When applying updates, review the changes in this release alongside your current configuration to decide which features from this version to adopt.
 
-## [1.3.2] - 2026-09-23
+## [1.3.2] - 2026-09-24
 
 ### Bug Fixes
 
