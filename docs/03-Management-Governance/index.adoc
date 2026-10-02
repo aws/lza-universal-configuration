@@ -357,4 +357,137 @@ While the LZA Universal Config implements backup-focused tag policies, this fram
 * *Confidentiality* (`public`, `internal`, `confidential`, `restricted`) - For security controls
 ====
 
+== Cloud Financial Management - link:../../modules/base/default/global-config.yaml[global-config.yaml]
+
+Cloud financial management is essential for maintaining cost visibility, controlling spending, and optimizing cloud investments across multi-account AWS environments. Organizations without proper financial governance frequently experience unexpected cost overruns, difficulty attributing costs to specific teams or projects, and inability to forecast future spending accurately. These challenges intensify in complex environments where resources span multiple accounts, regions, and services without centralized visibility or control mechanisms.
+
+The LZA Universal Config addresses these critical financial management challenges by implementing AWS Cost and Usage Reports (CUR) and AWS Budgets through automated configuration. This approach establishes comprehensive cost tracking from day one, creates proactive spending controls, and enables data-driven financial decisions—all without the complex manual setup typically required for enterprise-grade financial management.
+
+By implementing cloud financial management through the LZA Universal Config, organizations gain immediate visibility into their AWS spending patterns, receive automated alerts before budget overruns occur, and establish the foundation for advanced cost optimization strategies. This proactive approach transforms cloud financial management from a reactive reporting function into a strategic capability that enables sustainable cloud growth.
+
+=== AWS Cost and Usage Reports - `costAndUsageReport`
+
+AWS Cost and Usage Reports (CUR) provide the most comprehensive and detailed view of your AWS costs and usage, serving as the foundation for advanced cost analysis, chargeback mechanisms, and optimization initiatives. Organizations without CUR face significant limitations in understanding their cloud spending patterns, often relying on high-level billing data that lacks the granularity needed for effective cost management and optimization decisions.
+
+The LZA Universal Config automatically configures CUR with industry best practices, eliminating the complexity of manual setup while ensuring optimal data format and retention settings. This configuration establishes a centralized repository of detailed billing data that can be analyzed using AWS native tools or integrated with third-party cost management platforms.
+
+==== Report Configuration and Data Format
+
+The LZA Universal Config implements CUR with carefully selected settings that balance data comprehensiveness with query performance:
+
+* *Parquet Format* - The configuration uses Parquet format for both compression and output, providing efficient storage and optimized query performance when analyzing large volumes of billing data. This columnar format significantly reduces storage costs while enabling faster analytics compared to CSV formats.
+
+* *Monthly Time Granularity* - Line items are aggregated monthly, which keeps report sizes manageable and aligns with typical financial reporting cycles. This is the granularity of the data itself, not the delivery schedule: AWS refreshes the report files at least daily. If you need per-day or per-hour line items for chargeback or anomaly analysis, change `timeUnit` to `DAILY` or `HOURLY`, accepting larger reports and higher storage cost.
+
+* *Automatic Report Versioning* - The `CREATE_NEW_REPORT` versioning strategy writes every report refresh to a new version instead of overwriting the previous one, preserving the full sequence of estimates for compliance and trend analysis and retaining the record of billing adjustments and credits that arrive after a report is first delivered. Because refreshes occur at least daily, this produces more objects in S3 than the overwrite strategy, which the lifecycle rules below bound.
+
+* *Closed Report Refresh* - With `refreshClosedReports` enabled, the configuration ensures that any billing adjustments, credits, or late-arriving usage data are automatically incorporated into previously generated reports, maintaining accuracy for financial reconciliation.
+
+==== Data Lifecycle and Storage Optimization
+
+The LZA Universal Config implements intelligent lifecycle rules for CUR data, addressing the dual requirements of long-term retention for compliance and cost-effective storage:
+
+* *S3 Storage Organization* - Reports are stored with a defined prefix structure (`cur`) that enables logical organization and simplified access control. This standardized approach facilitates integration with analytics tools and cost management platforms.
+
+* *Automatic Data Expiration* - The configuration implements a 365-day retention policy for CUR data, automatically removing older reports to control storage costs while maintaining a full year of detailed billing history for year-over-year analysis and audit requirements.
+
+* *Incomplete Upload Protection* - The 7-day abort policy for incomplete multipart uploads prevents orphaned data from consuming storage, addressing a common source of unnecessary S3 costs in environments with large data transfers.
+
+==== Integration and Analytics Capabilities
+
+The Parquet format configuration enables powerful analytics capabilities:
+
+* *Amazon Athena Integration* - Query your billing data using standard SQL for ad-hoc analysis and custom reporting
+* *AWS QuickSight Compatibility* - Build interactive dashboards and visualizations for executive reporting
+* *Third-Party Tool Support* - Export data to specialized cost management platforms for advanced optimization
+* *Programmatic Access* - Leverage APIs and SDKs for automated cost analysis and anomaly detection
+
+These capabilities operate on whatever granularity `timeUnit` produces. Under the default `MONTHLY` setting the finest available resolution is a monthly line item per service, usage type, and operation, which is sufficient for allocation and trend reporting. Analyses that depend on sub-monthly resolution, such as day-over-day anomaly detection or hourly utilization profiling, require `DAILY` or `HOURLY`.
+
+This comprehensive CUR configuration provides the detailed visibility required for:
+
+* Accurate cost allocation and chargeback to business units
+* Identification of cost optimization opportunities
+* Reserved Instance and Savings Plan utilization tracking
+* Detailed service-level spending analysis
+* Compliance with financial audit requirements
+
+=== AWS Budgets - `budgets`
+
+AWS Budgets transforms reactive cost management into proactive financial governance by establishing spending thresholds and automated alerting across your AWS environment. Organizations without proper budget controls often discover cost overruns only after receiving monthly bills, limiting their ability to take corrective action and potentially impacting project funding or organizational financial planning.
+
+The LZA Universal Config implements a graduated budget monitoring system built on multiple alert thresholds, so that stakeholders learn how far through the monthly budget spending has progressed rather than discovering the total at the end of the month. Every threshold in the configuration is `type: ACTUAL`, meaning it evaluates spend that has already accrued; the sub-100% thresholds are what provide the in-month signal that spending is tracking high while there is still time to respond.
+
+==== Budget Structure and Deployment
+
+The LZA Universal Config deploys budgets with strategic targeting and comprehensive cost inclusion:
+
+* *Management Account Deployment* - Budgets are deployed to the Management account by default, providing organization-wide spending visibility. This centralized approach ensures that senior leadership and finance teams have comprehensive oversight of total AWS spending.
+
+* *Monthly Tracking Interval* - The configuration uses monthly budget periods that align with typical business financial cycles, enabling straightforward comparison with approved budgets and facilitating month-over-month trend analysis.
+
+* *Comprehensive Cost Inclusion* - The budget configuration includes all cost types (upfront, tax, support, subscriptions, recurring charges, and discounts) while excluding credits and refunds. This approach provides a true picture of AWS spending without artificial reductions from temporary credits.
+
+* *USD Currency Standard* - Budgets are configured in US Dollars, providing a consistent currency baseline for multinational organizations. The default configuration sets a $2,000 monthly budget as a starting point that organizations should adjust based on their expected spending.
+
+==== Multi-Threshold Notification Strategy
+
+The LZA Universal Config implements a graduated alert system that provides increasingly urgent notifications as spending approaches and exceeds budget limits:
+
+* *50% Threshold* - Early warning that spending is tracking at half the monthly budget, enabling proactive review of usage patterns
+* *75% Threshold* - Mid-month alert indicating higher than expected burn rate, prompting investigation into anomalous spending
+* *80% Threshold* - Warning that budget exhaustion is likely, requiring immediate attention to prevent overruns
+* *90% Threshold* - Critical alert demanding immediate action to control costs
+* *100% Threshold* - Budget exceeded notification, triggering incident response procedures
+
+All five thresholds notify the same recipient, the address supplied through the `BudgetsEmail` parameter, so the graduated thresholds differentiate urgency rather than audience. Pointing `BudgetsEmail` at a distribution list is the simplest way to give each stakeholder group the signal it needs from this configuration:
+
+* Finance teams receive indicators of in-month spending trends
+* Technical teams have time to investigate and address unusual usage
+* Management can make informed decisions about budget adjustments
+
+To route individual thresholds to different recipients, or to trigger automation rather than email, add notification entries with their own `address` and `subscriptionType`. A single AWS Budgets notification supports up to 10 email addresses and one Amazon SNS topic.
+
+[NOTE]
+====
+An `ACTUAL` notification is sent once per budget period, the first time spending crosses its threshold. Crossing back below and above the same threshold within the month does not generate a second alert.
+====
+
+==== Budget Types and Advanced Capabilities
+
+While the LZA Universal Config implements cost-based budgets, the framework supports additional budget types for comprehensive financial management:
+
+* *Usage Budgets* - Monitor consumption of specific services (e.g., EC2 hours, data transfer)
+* *Reservation Budgets* - Track Reserved Instance and Savings Plan utilization
+* *Resource-Specific Budgets* - Create budgets for individual projects, teams, or applications using tags
+
+The notification system can be extended beyond email to include:
+
+* SNS topic integration for automated responses
+* Slack or Teams webhooks for real-time team notifications
+* Integration with ticketing systems for formal incident management
+* Lambda function triggers for automated cost control actions
+
+[IMPORTANT]
+====
+The default $2,000 monthly budget in the LZA Universal Config is a placeholder value that must be adjusted to match your organization's expected AWS spending. During initial deployment:
+
+1. Set an initial budget based on projected monthly spending
+2. Monitor actual spending patterns for the first 2-3 months
+3. Adjust budgets to reflect realistic thresholds with appropriate buffer
+4. Consider creating separate budgets for different organizational units or projects
+5. Implement automated actions for critical threshold breaches
+====
+
+[TIP]
+====
+To maximize the effectiveness of AWS Budgets in your environment:
+
+* Create separate budgets for production and non-production environments
+* Implement tag-based budgets for accurate project cost tracking
+* Establish clear escalation procedures for each threshold level
+* Regularly review and adjust budgets based on business growth and cloud adoption
+* Consider implementing AWS Cost Anomaly Detection alongside Budgets, which detects unusual spending patterns that a fixed threshold will not catch
+====
+
 
