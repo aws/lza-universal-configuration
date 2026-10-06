@@ -2,8 +2,12 @@ image: registry.gitlab.com/gitlab-org/cloud-deploy/aws-base:latest
 
 stages:
   - validate
-  - deploy-wave-1
-  - deploy-wave-2
+  - deploy-dev-wave-1
+  - deploy-dev-wave-2
+  - promote-test
+  - deploy-test
+  - promote-prod
+  - deploy-prod
   - release
 
 workflow:
@@ -16,12 +20,7 @@ workflow:
       when: always
     - if: $CI_COMMIT_BRANCH == "dev"
       when: always
-    - if: $CI_COMMIT_BRANCH == "test"
-      when: always
-    - if: $CI_COMMIT_BRANCH == "prod"
-      when: always
     - if: $CI_COMMIT_BRANCH == "main"
-      when: always
       when: always
 
 validate:
@@ -94,6 +93,11 @@ release:
 
 .deploy:
   resource_group: ${ENVIRONMENT_NAME}-${AWS_DEFAULT_REGION}
+  # Project has auto-cancel-redundant-pipelines enabled; interruptible: false
+  # keeps a running deploy from being cancelled when a newer commit lands on
+  # the branch. Without this, cancellation would strand the AWSAccelerator-
+  # Pipeline execution that is already running in the target AWS account.
+  interruptible: false
   environment:
     name: ${ENVIRONMENT_NAME}/${AWS_DEFAULT_REGION}
   before_script:
@@ -182,7 +186,7 @@ release:
 
 deploy:dev001:hub-spoke:us-east-1:
   extends: .deploy
-  stage: deploy-wave-1
+  stage: deploy-dev-wave-1
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -200,7 +204,7 @@ deploy:dev001:hub-spoke:us-east-1:
 
 deploy:dev001:hub-spoke:us-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-dev-wave-2
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -218,7 +222,7 @@ deploy:dev001:hub-spoke:us-west-2:
 
 deploy:dev001:hub-spoke:ca-central-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-dev-wave-2
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -236,7 +240,7 @@ deploy:dev001:hub-spoke:ca-central-1:
 
 deploy:dev001:hub-spoke:ap-southeast-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-dev-wave-2
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -254,7 +258,7 @@ deploy:dev001:hub-spoke:ap-southeast-2:
 
 deploy:dev001:hub-spoke:eu-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-dev-wave-2
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -272,7 +276,7 @@ deploy:dev001:hub-spoke:eu-west-2:
 
 deploy:dev002:shared-vpc:us-east-1:
   extends: .deploy
-  stage: deploy-wave-1
+  stage: deploy-dev-wave-1
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -290,7 +294,7 @@ deploy:dev002:shared-vpc:us-east-1:
 
 deploy:dev002:shared-vpc:us-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-dev-wave-2
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -308,7 +312,7 @@ deploy:dev002:shared-vpc:us-west-2:
 
 deploy:dev002:shared-vpc:ca-central-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-dev-wave-2
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -326,7 +330,7 @@ deploy:dev002:shared-vpc:ca-central-1:
 
 deploy:dev002:shared-vpc:ap-southeast-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-dev-wave-2
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -344,7 +348,7 @@ deploy:dev002:shared-vpc:ap-southeast-2:
 
 deploy:dev002:shared-vpc:eu-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-dev-wave-2
   rules:
     - if: $CI_COMMIT_BRANCH == "dev"
   variables:
@@ -361,14 +365,49 @@ deploy:dev002:shared-vpc:eu-west-2:
     WORKLOAD_SANDBOX_ACCOUNTS: 1
 
 # ===========================================================================
+# PROMOTE TO TEST (manual gate between deploy-dev and deploy-test)
+# ===========================================================================
+# Hidden list of every dev deploy job. The promote waits on all 10 so a
+# single click after the full dev tier is green moves the change to test.
+# Reused via !reference below.
+.all-dev-jobs:
+  needs:
+    - deploy:dev001:hub-spoke:us-east-1
+    - deploy:dev001:hub-spoke:us-west-2
+    - deploy:dev001:hub-spoke:ca-central-1
+    - deploy:dev001:hub-spoke:ap-southeast-2
+    - deploy:dev001:hub-spoke:eu-west-2
+    - deploy:dev002:shared-vpc:us-east-1
+    - deploy:dev002:shared-vpc:us-west-2
+    - deploy:dev002:shared-vpc:ca-central-1
+    - deploy:dev002:shared-vpc:ap-southeast-2
+    - deploy:dev002:shared-vpc:eu-west-2
+
+promote:test:
+  stage: promote-test
+  needs: !reference [.all-dev-jobs, needs]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev"
+      when: manual
+      allow_failure: false
+  environment:
+    name: test
+    action: start
+    deployment_tier: staging
+  script:
+    - echo "Promoting ${CI_COMMIT_SHA:0:12} to test"
+
+# ===========================================================================
 # TEST
 # ===========================================================================
 
 deploy:test001:hub-spoke:us-east-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "us-east-1"
@@ -384,9 +423,11 @@ deploy:test001:hub-spoke:us-east-1:
 
 deploy:test001:hub-spoke:us-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "us-west-2"
@@ -402,9 +443,11 @@ deploy:test001:hub-spoke:us-west-2:
 
 deploy:test001:hub-spoke:ca-central-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "ca-central-1"
@@ -420,9 +463,11 @@ deploy:test001:hub-spoke:ca-central-1:
 
 deploy:test001:hub-spoke:ap-southeast-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "ap-southeast-2"
@@ -438,9 +483,11 @@ deploy:test001:hub-spoke:ap-southeast-2:
 
 deploy:test001:hub-spoke:eu-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "eu-west-2"
@@ -456,9 +503,11 @@ deploy:test001:hub-spoke:eu-west-2:
 
 deploy:test002:shared-vpc:us-east-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "us-east-1"
@@ -474,9 +523,11 @@ deploy:test002:shared-vpc:us-east-1:
 
 deploy:test002:shared-vpc:us-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "us-west-2"
@@ -492,9 +543,11 @@ deploy:test002:shared-vpc:us-west-2:
 
 deploy:test002:shared-vpc:ca-central-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "ca-central-1"
@@ -510,9 +563,11 @@ deploy:test002:shared-vpc:ca-central-1:
 
 deploy:test002:shared-vpc:ap-southeast-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "ap-southeast-2"
@@ -528,9 +583,11 @@ deploy:test002:shared-vpc:ap-southeast-2:
 
 deploy:test002:shared-vpc:eu-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-test
+  needs:
+    - promote:test
   rules:
-    - if: $CI_COMMIT_BRANCH == "test"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "eu-west-2"
@@ -545,14 +602,48 @@ deploy:test002:shared-vpc:eu-west-2:
     WORKLOAD_SANDBOX_ACCOUNTS: 1
 
 # ===========================================================================
+# PROMOTE TO PROD (manual gate between deploy-test and deploy-prod)
+# ===========================================================================
+# Hidden list of every test deploy job. The promote waits on all 10 so a
+# single click after the full test tier is green moves the change to prod.
+.all-test-jobs:
+  needs:
+    - deploy:test001:hub-spoke:us-east-1
+    - deploy:test001:hub-spoke:us-west-2
+    - deploy:test001:hub-spoke:ca-central-1
+    - deploy:test001:hub-spoke:ap-southeast-2
+    - deploy:test001:hub-spoke:eu-west-2
+    - deploy:test002:shared-vpc:us-east-1
+    - deploy:test002:shared-vpc:us-west-2
+    - deploy:test002:shared-vpc:ca-central-1
+    - deploy:test002:shared-vpc:ap-southeast-2
+    - deploy:test002:shared-vpc:eu-west-2
+
+promote:prod:
+  stage: promote-prod
+  needs: !reference [.all-test-jobs, needs]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "dev"
+      when: manual
+      allow_failure: false
+  environment:
+    name: prod
+    action: start
+    deployment_tier: production
+  script:
+    - echo "Promoting ${CI_COMMIT_SHA:0:12} to prod"
+
+# ===========================================================================
 # PROD
 # ===========================================================================
 
 deploy:prod001:hub-spoke:us-east-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "us-east-1"
@@ -568,9 +659,11 @@ deploy:prod001:hub-spoke:us-east-1:
 
 deploy:prod001:hub-spoke:us-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "us-west-2"
@@ -586,9 +679,11 @@ deploy:prod001:hub-spoke:us-west-2:
 
 deploy:prod001:hub-spoke:ca-central-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "ca-central-1"
@@ -604,9 +699,11 @@ deploy:prod001:hub-spoke:ca-central-1:
 
 deploy:prod001:hub-spoke:ap-southeast-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "ap-southeast-2"
@@ -622,9 +719,11 @@ deploy:prod001:hub-spoke:ap-southeast-2:
 
 deploy:prod001:hub-spoke:eu-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "hub-and-spoke"
     AWS_DEFAULT_REGION: "eu-west-2"
@@ -640,9 +739,11 @@ deploy:prod001:hub-spoke:eu-west-2:
 
 deploy:prod002:shared-vpc:us-east-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "us-east-1"
@@ -658,9 +759,11 @@ deploy:prod002:shared-vpc:us-east-1:
 
 deploy:prod002:shared-vpc:us-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "us-west-2"
@@ -676,9 +779,11 @@ deploy:prod002:shared-vpc:us-west-2:
 
 deploy:prod002:shared-vpc:ca-central-1:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "ca-central-1"
@@ -694,9 +799,11 @@ deploy:prod002:shared-vpc:ca-central-1:
 
 deploy:prod002:shared-vpc:ap-southeast-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "ap-southeast-2"
@@ -712,9 +819,11 @@ deploy:prod002:shared-vpc:ap-southeast-2:
 
 deploy:prod002:shared-vpc:eu-west-2:
   extends: .deploy
-  stage: deploy-wave-2
+  stage: deploy-prod
+  needs:
+    - promote:prod
   rules:
-    - if: $CI_COMMIT_BRANCH == "prod"
+    - if: $CI_COMMIT_BRANCH == "dev"
   variables:
     NETWORK_TYPE: "shared-vpc"
     AWS_DEFAULT_REGION: "eu-west-2"
