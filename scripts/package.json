@@ -7,6 +7,9 @@
     "name": "Amazon Web Services",
     "url": "https://aws.amazon.com/solutions"
   },
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
   "dependencies": {
     "js-yaml": "^4.3.1"
   }

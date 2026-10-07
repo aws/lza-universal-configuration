@@ -198,19 +198,56 @@
     # EUSC: Bedrock AgentCore endpoints not available — comment out services
     - pattern: "        # Amazon Bedrock AgentCore endpoints\n        - service: bedrock-agentcore\n        - service: bedrock-agentcore-control\n        - service: bedrock-agentcore.gateway"
       replacement: "        # Amazon Bedrock AgentCore endpoints - not available in EUSC\n        # - service: bedrock-agentcore\n        # - service: bedrock-agentcore-control\n        # - service: bedrock-agentcore.gateway"
-    # EUSC: ec2messages endpoint not available (verified via describe-vpc-endpoint-services April 2026)
-    - pattern: |
-        "        - service: ec2messages"
-      replacement: |
-        "        # - service: ec2messages - not available in EUSC"
-    # EUSC: ECR endpoints use eu.amazonaws prefix — serviceName override required
-    - pattern: "        - service: ecr.api\n        - service: ecr.dkr"
-      replacement: "        # ECR endpoints use eu.amazonaws prefix in EUSC\n        - service: ecr.api\n          serviceName: eu.amazonaws.eusc-de-east-1.ecr.api\n        - service: ecr.dkr\n          serviceName: eu.amazonaws.eusc-de-east-1.ecr.dkr"
-    # EUSC: ssm-incidents endpoint not available (verified via describe-vpc-endpoint-services April 2026)
-    - pattern: |
-        "        - service: ssm-incidents"
-      replacement: |
-        "        # - service: ssm-incidents - not available in EUSC"
+    # EUSC: central interface endpoints
+    # - Private hosted zones must use the amazonaws.eu suffix that SDKs call in EUSC. LZA names the zones
+    #   <service>.<region>.amazonaws.com unless hostedZoneName is set (LZA v1.16.0 and later), and hostedZoneName
+    #   takes precedence over the derived name, so these names stay correct if LZA derives the suffix later.
+    # - Dotted services (ecr.api, ecr.dkr) are written with a trailing dot, the exact form LZA uses for them, because
+    #   the zone name forces replacement and CloudFormation compares the strings.
+    # - serviceName is set with hostedZoneName on every endpoint (the LZA validator warns on a one-sided override).
+    #   ECR endpoints use the eu.amazonaws service name prefix; the others use com.amazonaws.
+    # - ec2messages and ssm-incidents are not available (verified via describe-vpc-endpoint-services April 2026)
+    - pattern: |2
+                - service: ec2
+                - service: ec2messages
+                - service: ecr.api
+                - service: ecr.dkr
+                - service: kms
+                - service: logs
+                - service: monitoring
+                - service: ssm
+                # - service: ssm-contacts
+                - service: ssm-incidents
+                - service: ssmmessages
+      replacement: |2
+                - service: ec2
+                  serviceName: com.amazonaws.{{ HomeRegion }}.ec2
+                  hostedZoneName: ec2.{{ HomeRegion }}.amazonaws.eu
+                # - service: ec2messages - not available in EUSC
+                # ECR endpoints use eu.amazonaws prefix in EUSC
+                - service: ecr.api
+                  serviceName: eu.amazonaws.{{ HomeRegion }}.ecr.api
+                  hostedZoneName: api.ecr.{{ HomeRegion }}.amazonaws.eu.
+                - service: ecr.dkr
+                  serviceName: eu.amazonaws.{{ HomeRegion }}.ecr.dkr
+                  hostedZoneName: dkr.ecr.{{ HomeRegion }}.amazonaws.eu.
+                - service: kms
+                  serviceName: com.amazonaws.{{ HomeRegion }}.kms
+                  hostedZoneName: kms.{{ HomeRegion }}.amazonaws.eu
+                - service: logs
+                  serviceName: com.amazonaws.{{ HomeRegion }}.logs
+                  hostedZoneName: logs.{{ HomeRegion }}.amazonaws.eu
+                - service: monitoring
+                  serviceName: com.amazonaws.{{ HomeRegion }}.monitoring
+                  hostedZoneName: monitoring.{{ HomeRegion }}.amazonaws.eu
+                - service: ssm
+                  serviceName: com.amazonaws.{{ HomeRegion }}.ssm
+                  hostedZoneName: ssm.{{ HomeRegion }}.amazonaws.eu
+                # - service: ssm-contacts
+                # - service: ssm-incidents - not available in EUSC
+                - service: ssmmessages
+                  serviceName: com.amazonaws.{{ HomeRegion }}.ssmmessages
+                  hostedZoneName: ssmmessages.{{ HomeRegion }}.amazonaws.eu
 
 - filename: organization-config.yaml
   items:

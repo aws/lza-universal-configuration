@@ -8,6 +8,14 @@ We highly recommend that you keep your environments up to date by upgrading to t
 
 When applying updates, review the changes in this release alongside your current configuration to decide which features from this version to adopt.
 
+## [1.3.3] - Unreleased
+
+### Bug Fixes
+
+- **AWS European Sovereign Cloud Interface Endpoint DNS**: Set `hostedZoneName` on every centralized interface endpoint in the AWS European Sovereign Cloud configuration, using the `amazonaws.eu` DNS suffix, and set `serviceName` next to it. Spoke VPCs now resolve AWS service API names to the central endpoints instead of public addresses that the Network Firewall policy drops. The ECR `serviceName` overrides now use `{{ HomeRegion }}` instead of a fixed Region.
+
+  **Upgrade Notes**: The private hosted zone name cannot be changed in place, so the next pipeline run replaces each central endpoint hosted zone. The NetworkVpcDns stage creates the new zones and the NetworkAssociations stage then associates them with the spoke VPCs. The replaced `amazonaws.com` zones were not used by SDKs in the AWS European Sovereign Cloud, so no working path is lost during the run. After the run, check that each new zone is associated with every spoke VPC. Keep the `hostedZoneName` values after later LZA upgrades: they take precedence over the name LZA derives. The values match the names a partition-aware LZA derives, including the trailing dot on `api.ecr` and `dkr.ecr`; if you edit them, keep that form, because a zone whose name string changes is replaced, and a replacement zone with the same name in the same VPC fails with `ConflictingDomainExists`.
+
 ## [1.3.2] - 2026-09-24
 
 ### Bug Fixes

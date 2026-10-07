@@ -80,6 +80,10 @@ Certain AWS services and features used in the standard Universal Configuration a
 [NOTE]
 Not all AWS services are available in all Regions, including the AWS European Sovereign Cloud. Refer to the link:https://aws.amazon.com/about-aws/global-infrastructure/regional-product-services/[AWS Regional Services list] for current service availability.
 
+=== Interface Endpoint DNS Names
+
+AWS service endpoints in the AWS European Sovereign Cloud use the DNS suffix `amazonaws.eu`, for example `kms.eusc-de-east-1.amazonaws.eu`. LZA names the private hosted zones for centralized interface endpoints with `amazonaws.com` unless `hostedZoneName` is set, so this configuration sets `serviceName` and `hostedZoneName` on every endpoint in the central endpoints VPC. When you add an endpoint, set `serviceName` to the `ServiceName` that `aws ec2 describe-vpc-endpoint-services --region eusc-de-east-1` returns for the service, and `hostedZoneName` to the `amazonaws.eu` entry of its `PrivateDnsNames`, without the leading `*.`. Do not use `PrivateDnsName`: for some services it is the dual-stack `api.amazonwebservices.eu` name, which SDKs do not call by default, so a zone with that name catches no SDK traffic and calls go to the public endpoint. For a service name that contains a dot, such as `ecr.api`, end `hostedZoneName` with a dot (`api.ecr.<region>.amazonaws.eu.`), as LZA does when it names these zones. Amazon ECR uses the `eu.amazonaws.<region>.` service name prefix; the other endpoints in this configuration use `com.amazonaws.<region>.`.
+
 === Configuration Selection
 
 Use the LZA Universal Configuration for AWS European Sovereign Cloud deployments:
