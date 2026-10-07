@@ -1,4 +1,4 @@
-image: registry.gitlab.com/gitlab-org/cloud-deploy/aws-base:latest
+image: public.ecr.aws/amazonlinux/amazonlinux:2023
 
 stages:
   - validate
@@ -23,12 +23,16 @@ workflow:
     - if: $CI_COMMIT_BRANCH == "main"
       when: always
 
+# Toolchain for every job on the Amazon Linux image. All packages come from
+# Amazon's own repositories, so jobs do not depend on third-party archive mirrors.
+.al2023_tools:
+  before_script:
+    - dnf install -q -y nodejs22 nodejs22-npm awscli-2 zip unzip tar gzip
+
 validate:
   stage: validate
   before_script:
-    - apt-get update -yq
-    - curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    - apt-get install -y nodejs
+    - !reference [.al2023_tools, before_script]
   script:
     - curl -s -o viperlight.zip https://viperlight-scanner.s3.amazonaws.com/latest/viperlight.zip
     - unzip -q viperlight.zip -d ../viperlight
@@ -101,9 +105,8 @@ release:
   environment:
     name: ${ENVIRONMENT_NAME}/${AWS_DEFAULT_REGION}
   before_script:
-    - apt-get update -yq
+    - !reference [.al2023_tools, before_script]
   script:
-    - apt-get install nodejs npm -yq
     - cd modules
     - mkdir temp
     - cp -r base/default/* temp/
