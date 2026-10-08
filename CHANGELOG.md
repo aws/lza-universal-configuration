@@ -16,6 +16,10 @@ When applying updates, review the changes in this release alongside your current
 
   **Upgrade Notes**: The private hosted zone name cannot be changed in place, so the next pipeline run replaces each central endpoint hosted zone. The NetworkVpcDns stage creates the new zones and the NetworkAssociations stage then associates them with the spoke VPCs. The replaced `amazonaws.com` zones were not used by SDKs in the AWS European Sovereign Cloud, so no working path is lost during the run. After the run, check that each new zone is associated with every spoke VPC. Keep the `hostedZoneName` values after later LZA upgrades: they take precedence over the name LZA derives. The values match the names a partition-aware LZA derives, including the trailing dot on `api.ecr` and `dkr.ecr`; if you edit them, keep that form, because a zone whose name string changes is replaced, and a replacement zone with the same name in the same VPC fails with `ConflictingDomainExists`.
 
+- **AWS European Sovereign Cloud Account ID Placeholder**: Fixed the `accountIds` entry that the AWS European Sovereign Cloud configuration adds to `accounts-config.yaml`. The update marker after the quoted `accountId` value was not a YAML comment, so the file did not parse, before or after you replaced the placeholder account ID. The marker is now a comment.
+
+  **Upgrade Notes**: No change to deployed resources. If you already corrected this line in your configuration, no action is required.
+
 ## [1.3.2] - 2026-09-24
 
 ### Bug Fixes

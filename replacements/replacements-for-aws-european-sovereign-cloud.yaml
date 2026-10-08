@@ -182,7 +182,7 @@
       replacement: "  - name: LzaDeploymentAccount\n    description: Account to access and manage Landing Zone Accelerator on AWS\n    email: <lzadeployment>@example.com  <----- UPDATE EMAIL ADDRESS\n    organizationalUnit: LzaDeployment\n  - name: SharedServices"
     # EUSC: Add accountIds section after workloadAccounts
     - pattern: "    email: <perimeter>@example.com  <----- UPDATE EMAIL ADDRESS\n    organizationalUnit: Infrastructure"
-      replacement: "    email: <perimeter>@example.com  <----- UPDATE EMAIL ADDRESS\n    organizationalUnit: Infrastructure\naccountIds:\n  - email: <lzadeployment>@example.com  <----- UPDATE EMAIL ADDRESS\n    accountId: '111111111111'  <----- UPDATE ACCOUNT ID"
+      replacement: "    email: <perimeter>@example.com  <----- UPDATE EMAIL ADDRESS\n    organizationalUnit: Infrastructure\naccountIds:\n  - email: <lzadeployment>@example.com  <----- UPDATE EMAIL ADDRESS\n    accountId: '111111111111'  # <----- UPDATE ACCOUNT ID"
 
 - filename: network-config.yaml
   items:
