@@ -370,6 +370,17 @@ The LZA Universal Configuration deploys a single RCP (`lza-core-rcp-guardrails-1
 * AWS services acting on your behalf (e.g. IAM Identity Center, Control Tower) are excluded via the `aws:PrincipalIsAWSService` condition and are not blocked
 * Before deploying broadly, use link:https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html[IAM Access Analyzer] to review existing external access findings and validate that no legitimate cross-account patterns are blocked
 
+===== Declarative Policies
+
+link:https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_declarative.html[Declarative policies] enforce the baseline configuration of an AWS service across accounts. They are applied in the service's control plane rather than by allowing or denying API calls. The LZA Universal Configuration deploys `lza-core-vpc-block-public-access.json`, which blocks internet gateway traffic in both directions (exclusions allowed) for the Security and Workloads/Dev, Test, and Prod OUs and the Network and SharedServices accounts.
+
+[discrete]
+===== Implementation Considerations
+
+* Account administrators cannot change an attribute that a declarative policy controls
+* If you detach a declarative policy, the attribute rolls back to its state before the policy was attached
+* Declarative policies can also enforce VPC Encryption Controls. This is not deployed by default; see link:../05-Networking/index.adoc[Networking Architecture] (Encryption in Transit with VPC Encryption Controls)
+
 === Accounts Configuration
 
 The `accounts-config.yaml` file defines the AWS accounts in place within the AWS Organization.  The LZA solution requires certain mandatory accounts to be defined.  All AWS accounts in the AWS organization must be specified for all Organizational Units unless the organizational unit is specifically excluded in the `organizations-config.yaml`.

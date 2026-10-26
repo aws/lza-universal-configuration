@@ -361,6 +361,8 @@ vpcFlowLogs:
 These flow logs provide valuable data for security analysis, troubleshooting, and network optimization. While logs are kept in CloudWatch for 30 days for operational use, they are also automatically forwarded to the central logging S3 bucket in the Log Archive account for long-term retention and compliance purposes. You can customize the retention period and field selection based on your specific requirements.
 ====
 
+NOTE: When VPC Encryption Controls is enabled, the `encryption-status` flow log field records whether each flow is not encrypted, Nitro-encrypted, application-encrypted, or both. The Universal Configuration does not include this field by default. Adding it to `customFields` changes the flow log format, which replaces the existing VPC flow logs on the next pipeline run. Add it at the end of the list so that queries based on field position keep working. See https://docs.aws.amazon.com/vpc/latest/userguide/flow-log-records.html[Flow log records].
+
 === Transit Gateway Configuration
 
 https://docs.aws.amazon.com/vpc/latest/tgw/what-is-transit-gateway.html[AWS Transit Gateway] is a network transit hub that you can use to interconnect your VPCs and on-premises networks. It simplifies your network architecture by acting as a cloud router - each connection is only made once. Transit Gateway provides a hub-and-spoke model for network connectivity, enabling:
@@ -403,6 +405,243 @@ transitGateways:
 ** `tgw-rt-spoke` - For routing traffic from attached VPCs
 
 * **Sharing Configuration**: Transit Gateway resource sharing is defined through `shareTargets`, which may differ between networking models.
+====
+
+=== Transit Gateway Encryption Support
+
+https://docs.aws.amazon.com/vpc/latest/tgw/tgw-encryption-support.html[Transit Gateway encryption support] extends https://docs.aws.amazon.com/vpc/latest/userguide/vpc-encryption-controls.html[VPC Encryption Controls] across a transit gateway. When it is enabled, traffic between attached VPCs that have VPC Encryption Controls in enforce mode (without exclusions) traverses encrypted links through the transit gateway. A transit gateway with encryption support can also connect VPCs that are in monitor mode or that do not have Encryption Controls turned on. In that case, traffic is encrypted up to the transit gateway attachment in the VPC that is not in enforce mode, and encryption beyond that point depends on the destination resource.
+
+A VPC in enforce mode can only be attached to a transit gateway that has encryption support enabled. If you plan to enforce encryption in any VPC attached to the Universal Configuration transit gateway, enable encryption support on the transit gateway first.
+
+The LZA Universal Configuration does not enable encryption support by default. LZA v1.17.0 and later support the `encryptionSupport` property on each `transitGateways` entry in `network-config.yaml`. Both networking models include it as a commented-out line that you can uncomment:
+
+[source,yaml]
+----
+transitGateways:
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+    account: Network
+    region: "{{ HomeRegion }}"
+    # ...
+    autoAcceptSharingAttachments: enable
+    encryptionSupport: enable
+----
+
+[IMPORTANT]
+====
+Review the following before enabling encryption support:
+
+* **LZA version**: `encryptionSupport` requires LZA v1.17.0 or later. Earlier versions ignore the property, so the transit gateway is not modified.
+* **Enablement time**: The transit gateway goes through an `enabling` state that can take up to 14 days to complete. AWS states that the transition causes no downtime on the transit gateway or its attachments. While the state is `enabling`, you cannot create VPC attachments for VPCs in enforce mode.
+* **No replacement**: `EncryptionSupport` is updated in place on `AWS::EC2::TransitGateway` (no interruption), so the transit gateway is not recreated. This is compatible with the Universal Configuration stack policies, which allow `Update:Modify`.
+* **Incompatible features**: Encryption support cannot be used with Connect, peering, Network Firewall, VPN Concentrator, or Client VPN attachments, or with security group referencing or multicast. LZA configuration validation rejects `encryptionSupport: enable` when the same transit gateway uses `securityGroupReferencingSupport`, `multicastSupport`, `transitGatewayConnects`, or `transitGatewayPeering`. The Universal Configuration uses none of these by default. VPC, Site-to-Site VPN, and Direct Connect attachments are supported.
+* **Same Region**: All attached VPCs must be in the same Region. In multi-Region deployments, each Region has its own transit gateway, and you enable encryption support on each one.
+* **Availability Zone `use1-az3`**: Encryption support is not supported for VPC attachments in `use1-az3`. While encryption support is enabled, you cannot create a VPC attachment that uses a subnet in that Availability Zone. Availability Zone names map to different Availability Zone IDs in each account, so in `us-east-1` check the Availability Zone ID of the transit gateway attachment subnets in every account before you enable encryption support.
+* **Cost**: Encryption support on the transit gateway has no separate charge. However, VPC owners are charged for VPC Encryption Controls for every VPC attached to a transit gateway with encryption support enabled. For rates, see https://aws.amazon.com/vpc/pricing/[Amazon VPC pricing].
+====
+
+Encryption support alone does not provide end-to-end encryption. For how it works together with VPC Encryption Controls and declarative policies, see <<Encryption in Transit with VPC Encryption Controls>>.
+
+=== Encryption in Transit with VPC Encryption Controls
+
+https://docs.aws.amazon.com/vpc/latest/userguide/vpc-encryption-controls.html[VPC Encryption Controls] monitors the encryption status of traffic flows in your VPCs and can enforce encryption in transit within and across VPCs in a Region. It uses the built-in encryption in transit of AWS Nitro System hardware together with application-layer encryption. It has two modes:
+
+* *Monitor mode*: Reports whether traffic flows are encrypted and identifies resources that allow cleartext traffic. It does not block anything.
+* *Enforce mode*: Prevents creating or attaching resources that allow unencrypted traffic in the VPC, such as instances without Nitro encryption support or internet gateways, unless an exclusion exists for that resource type. Existing VPCs must be in monitor mode before they can move to enforce mode. New VPCs can be created directly in enforce mode.
+
+Combined with transit gateway encryption support, and applied across accounts with an AWS Organizations declarative policy, VPC Encryption Controls helps you enforce encryption in transit for traffic that stays within AWS in a Region, where every hop supports it (see <<Scope and Limitations>>).
+
+[cols="1,2,2", options="header"]
+|===
+|Control |What it does |How it is provided
+
+|VPC Encryption Controls
+|Monitors encryption status (monitor mode) or blocks resources that allow unencrypted traffic (enforce mode)
+|Not configured by the Universal Configuration, and LZA has no `network-config.yaml` property for it. Set it across accounts with a declarative policy (next row), or at the account or VPC level
+
+|Declarative policy (`vpc_encryption_control`)
+|Sets the Encryption Controls mode and exclusions for every VPC in the targeted accounts, including new VPCs and new accounts. While the policy is attached, VPC owners cannot change Encryption Controls themselves
+|Optional. Deployed through `declarativePolicies` in `organization-config.yaml`, like the existing VPC Block Public Access guardrail. See <<Example: Declarative Policy for VPC Encryption Controls>>
+
+|Transit gateway encryption support
+|Carries traffic between attached VPCs over encrypted links
+|`encryptionSupport` in `network-config.yaml`, commented out by default. See <<Transit Gateway Encryption Support>>
+
+|Network guardrail SCPs (`GRNETSEC2`)
+|Deny `ec2:ModifyTransitGateway*` to all principals except the `${ACCELERATOR_PREFIX}*`, management account access, and `cdk-accel*` roles, which limits who can turn off encryption support
+|Deployed by default as the `GRNETSEC2` statement in `lza-infrastructure-guardrails-1.json` (Network account), `lza-core-workloads-guardrails-1.json`, and `lza-core-sandbox-guardrails-1.json`
+|===
+
+==== Why a Declarative Policy
+
+link:https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_declarative.html[Declarative policies] are enforced in the service's control plane. SCPs and RCPs work differently: they allow or deny API calls. A declarative policy instead maintains the configured state, including for new VPCs, new accounts that join the targeted OUs, and service-linked roles. SCPs can deny the actions that change Encryption Controls, but they cannot require a mode, because the link:https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazonec2.html[Amazon EC2 service authorization reference] defines no condition key for it. RCPs do not apply, because Amazon EC2 is not an link:https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_rcps.html#rcp-supported-services[RCP-supported service].
+
+==== Scope and Limitations
+
+Encryption in transit is enforced only where every hop supports it. Plan for the following:
+
+* *Same Region only*: VPC Encryption Controls and transit gateway encryption support apply within a Region. Cross-Region traffic, including inter-Region VPC peering, needs a peering exclusion and is not covered.
+* *Exclusions*: Only eight resource types can be excluded: internet gateways, NAT gateways, egress-only internet gateways, VPC peering connections to VPCs that are not enforced, virtual private gateways, Lambda functions in the VPC, VPC Lattice, and Amazon EFS. You are responsible for encrypting traffic to and from excluded resources, usually with TLS. Other non-compliant resources must be remediated before a VPC can enter enforce mode.
+* *Unsupported in enforce mode*: Gateway Load Balancer and AWS Network Firewall are not supported in VPCs in enforce mode. VPCs that contain them must stay in monitor mode. Local Zone subnets are also not supported in enforce mode.
+* *Older instances and some services*: Instances without Nitro encryption support must be moved to current instance types. Some services need manual migration (for example, Amazon Redshift clusters require a snapshot and restore, and Network Load Balancer TLS listeners cannot be used). Use the console or `GetVpcResourcesBlockingEncryptionEnforcement` to find them.
+* *Traffic leaving AWS*: Traffic through internet gateways, NAT gateways, and virtual private gateways leaves AWS networks, and you remain responsible for its encryption.
+
+[IMPORTANT]
+====
+In both Universal Configuration networking models, the `tgw-rt-spoke` route table sends traffic to the inspection VPC, which runs AWS Network Firewall (see <<Central Inspection>>). Because Network Firewall is not supported in enforce mode, the inspection VPC must remain in monitor mode. For inspected flows, traffic from a VPC in enforce mode is encrypted up to the transit gateway attachment in the inspection VPC. VPC Encryption Controls does not enforce encryption beyond that point, so where you need encryption end to end on inspected paths, use application-layer encryption such as TLS between workloads. Use the `encryption-status` flow log field (see <<VPC Flow Logs>>) to check the encryption status of these flows.
+====
+
+==== Where Encryption Is Enforced in the Universal Configuration
+
+A declarative policy applies one mode to every VPC in the accounts it targets. This guidance therefore enforces encryption only in the Hub and Spoke Workloads/Prod accounts, whose VPCs have nothing that blocks enforce mode, and keeps every other account in monitor mode.
+
+[cols="2,1,1,3", options="header"]
+|===
+|VPC |Account |Mode |Why
+
+|Inspection
+|Network
+|Monitor
+|Contains AWS Network Firewall, which is not supported in enforce mode
+
+|Endpoints
+|Network
+|Monitor
+|Shares the Network account with the inspection VPC, and a declarative policy applies one mode per account
+
+|Ingress
+|Perimeter
+|Monitor
+|Enforce mode would need an `internet_gateway` exclusion. Its main traffic, to and from the internet, leaves AWS and is not covered by VPC Encryption Controls
+
+|Egress
+|Perimeter
+|Monitor
+|Enforce mode would need `internet_gateway` and `nat_gateway` exclusions. Its main traffic, to the internet, leaves AWS and is not covered by VPC Encryption Controls
+
+|SharedServices
+|SharedServices
+|Monitor
+|Kept with the rest of the Infrastructure OU in monitor mode. You can consider enforce mode later if `GetVpcResourcesBlockingEncryptionEnforcement` reports no blocking resources for the services you run there
+
+|Workload VPCs (Hub and Spoke)
+|Workloads/Prod accounts
+|Enforce
+|The VPC templates have no internet gateway, NAT gateway, or firewall, so no exclusions are needed by default
+
+|Workload VPCs (Hub and Spoke)
+|Workloads/Dev and Workloads/Test accounts
+|Monitor
+|Reports encryption status without blocking the resources that development and test teams create
+
+|Workload VPCs (Shared VPC)
+|Network
+|Monitor
+|The shared workload VPCs are owned by the Network account, together with the inspection VPC. Encryption Controls is set on the VPC, so a policy on the workload OUs has no effect on these VPCs
+|===
+
+In enforce mode, traffic inside each Workloads/Prod VPC, and from those VPCs up to the inspection VPC's transit gateway attachment, is encrypted. Enforce mode also blocks resources that cannot encrypt, such as instances without Nitro encryption support. VPC Encryption Controls does not enforce encryption after the inspection VPC's attachment. Traffic between workload VPCs, and from workload VPCs to the endpoints, shared services, and egress VPCs, passes through the inspection VPC, so use TLS where you need encryption end to end.
+
+==== Existing Environments
+
+If you enable these features in an environment that already has deployed resources:
+
+* *Transit gateway*: Enabling encryption support on an existing transit gateway is an in-place change. AWS states that existing traffic flows are not disrupted and that existing VPC attachments move to encrypted lanes automatically. The transition can take up to 14 days. During that time, you cannot attach VPCs that are in enforce mode.
+* *Existing VPCs*: Existing VPCs must start in monitor mode. With `attempt_enforce`, AWS moves them to monitor mode first and then attempts enforce mode. Monitor mode does not block anything. When it is turned on, AWS automatically migrates Network Load Balancers, Application Load Balancers, Fargate, and the Amazon EKS control plane to hardware that supports encryption.
+* *Resources that block enforce mode*: A VPC with blocking resources stays in monitor mode, in an enforce-failed state, until you remediate them. Examples are instances without Nitro encryption support, Amazon Redshift clusters (which require a snapshot and restore), Network Load Balancer TLS listeners, and Local Zone subnets. Run `GetVpcResourcesBlockingEncryptionEnforcement` before you attach an enforce-mode policy.
+* *After enforce mode is active*: Creating or attaching a resource that cannot encrypt fails in the enforced accounts. This includes resources that a workload team or a future LZA pipeline run tries to add, such as an internet gateway, NAT gateway, or older instance type.
+* *Flow logs*: Existing flow logs do not gain the `encryption-status` field. Adding it to `customFields` replaces the VPC flow logs on the next pipeline run.
+* *Rolling back*: Detaching the declarative policy rolls back the account-level configuration, but individual VPCs might not return to their previous state.
+* *Billing*: After encryption support is enabled on the transit gateway, every attached VPC is charged for VPC Encryption Controls, whether or not a declarative policy is attached.
+
+==== Enabling Encryption in Transit
+
+. Upgrade to LZA v1.17.0 or later.
+. Uncomment `encryptionSupport: enable` on the transit gateway in `network-config.yaml` and run the pipeline. Wait until the transit gateway's encryption support state is `enabled`, which can take up to 14 days.
+. Attach the monitor-mode declarative policy below to the Infrastructure OU and the workload OUs.
+. Optionally, add `encryption-status` to the VPC flow log fields (see <<VPC Flow Logs>>) and review the encryption status of your traffic.
+. In each Workloads/Prod account, run `GetVpcResourcesBlockingEncryptionEnforcement` and remediate any blocking resources.
+. Hub and Spoke only: move the Workloads/Prod OU from the monitor-mode policy to the enforce-mode policy. Use `DescribeVpcEncryptionControls` to find VPCs that did not transition.
+
+==== Example: Declarative Policy for VPC Encryption Controls
+
+The Universal Configuration already deploys a declarative policy from `organization-config.yaml` (`{{ AcceleratorPrefix }}-Vpc-Block-Public-Access-Guardrail`). Add VPC Encryption Controls the same way, with one policy file per mode.
+
+`declarative-policies/lza-vpc-encryption-controls-monitor.json`:
+
+[source,json]
+----
+{
+    "ec2_attributes": {
+        "vpc_encryption_control": {
+            "mode": {
+                "@@assign": "attempt_monitor"
+            }
+        }
+    }
+}
+----
+
+`declarative-policies/lza-vpc-encryption-controls-enforce.json`, for the Hub and Spoke Workloads/Prod OU only. No exclusions are needed for the Universal Configuration workload VPC templates. If your workloads use VPC-attached Lambda functions or Amazon EFS, add the `lambda` or `elastic_file_system` exclusion:
+
+[source,json]
+----
+{
+    "ec2_attributes": {
+        "vpc_encryption_control": {
+            "mode": {
+                "@@assign": "attempt_enforce"
+            }
+        }
+    }
+}
+----
+
+Reference the policies in `organization-config.yaml`. Start with every OU on the monitor-mode policy:
+
+[source,yaml]
+----
+declarativePolicies:
+  - name: "{{ AcceleratorPrefix }}-Vpc-Encryption-Controls-Monitor"
+    description: >
+      VPC Encryption Controls in monitor mode.
+    policy: declarative-policies/lza-vpc-encryption-controls-monitor.json
+    deploymentTargets:
+      organizationalUnits:
+        - Infrastructure
+        - Workloads/Dev
+        - Workloads/Test
+        - Workloads/Prod
+----
+
+When the Workloads/Prod accounts are ready (Hub and Spoke only), move the Workloads/Prod OU from the monitor-mode policy to the enforce-mode policy, so that no account receives both. The final state is:
+
+[source,yaml]
+----
+declarativePolicies:
+  - name: "{{ AcceleratorPrefix }}-Vpc-Encryption-Controls-Monitor"
+    description: >
+      VPC Encryption Controls in monitor mode.
+    policy: declarative-policies/lza-vpc-encryption-controls-monitor.json
+    deploymentTargets:
+      organizationalUnits:
+        - Infrastructure
+        - Workloads/Dev
+        - Workloads/Test
+  - name: "{{ AcceleratorPrefix }}-Vpc-Encryption-Controls-Enforce"
+    description: >
+      VPC Encryption Controls in enforce mode for Hub and Spoke Workloads/Prod VPCs.
+    policy: declarative-policies/lza-vpc-encryption-controls-enforce.json
+    deploymentTargets:
+      organizationalUnits:
+        - Workloads/Prod
+----
+
+[IMPORTANT]
+====
+* VPC Encryption Controls is charged per hour for each VPC that has a network interface, in both modes. For rates, see https://aws.amazon.com/vpc/pricing/[Amazon VPC pricing].
+* Follow the AWS guidance: run monitor mode first, and confirm that the Workloads/Prod VPCs have no blocking resources before attaching the enforce-mode policy.
+* Do not attach the enforce-mode policy to the Network or Perimeter accounts, or to the Infrastructure OU.
+* Declarative policies are not available in the AWS European Sovereign Cloud. There, configure VPC Encryption Controls at the account or VPC level.
 ====
 
 === Hybrid Connectivity Integration
@@ -935,6 +1174,7 @@ When implementing your landing zone network architecture, consider these key sec
 * Implement multiple layers of network security controls
 * Use both Network Firewall and security groups for traffic filtering
 * Implement least-privilege access at each layer
+* Consider VPC Encryption Controls and Transit Gateway encryption support for encryption in transit between VPCs (see <<Encryption in Transit with VPC Encryption Controls>>)
 
 === Traffic Inspection
 
@@ -1010,6 +1250,8 @@ When implementing either networking model, consider these important decisions:
 
 5. *Transit Gateway route table segmentation*: The default configuration implements two route tables (firewall and spoke) following the AWS Network Firewall centralized deployment model. Organizations with complex hybrid connectivity or strict environment isolation requirements may consider adding additional route tables for granular traffic control.
 
+6. *Encryption in transit*: Decide whether to enable Transit Gateway encryption support and VPC Encryption Controls, and which declarative policy mode to apply to each OU. Enforce mode is incompatible with the Network Firewall inspection VPC and adds a per-VPC hourly charge. See <<Encryption in Transit with VPC Encryption Controls>>.
+
 == Additional Resources
 
 For more information about AWS networking concepts used in these architectures, refer to:
@@ -1017,6 +1259,9 @@ For more information about AWS networking concepts used in these architectures, 
 * link:https://docs.aws.amazon.com/vpc/latest/userguide/what-is-amazon-vpc.html[Amazon VPC Documentation]
 * link:https://docs.aws.amazon.com/vpc/latest/userguide/vpc-sharing.html[VPC Sharing Documentation]
 * link:https://docs.aws.amazon.com/vpc/latest/tgw/what-is-transit-gateway.html[Transit Gateway Documentation]
+* link:https://docs.aws.amazon.com/vpc/latest/userguide/vpc-encryption-controls.html[VPC Encryption Controls Documentation]
+* link:https://docs.aws.amazon.com/vpc/latest/tgw/tgw-encryption-support.html[Transit Gateway Encryption Support Documentation]
+* link:https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_ec2_syntax.html[EC2 Declarative Policy Syntax]
 * link:https://docs.aws.amazon.com/vpc/latest/ipam/what-is-it-ipam.html[IP Address Manager Documentation]
 * link:https://docs.aws.amazon.com/vpc/latest/userguide/network-acls.html[Network ACLs Documentation]
 * link:https://docs.aws.amazon.com/network-firewall/latest/developerguide/what-is-aws-network-firewall.html[AWS Network Firewall Documentation]

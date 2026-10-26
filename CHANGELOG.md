@@ -8,6 +8,14 @@ We highly recommend that you keep your environments up to date by upgrading to t
 
 When applying updates, review the changes in this release alongside your current configuration to decide which features from this version to adopt.
 
+## [1.4.0] - Unreleased
+
+### Improvements
+
+- **Transit Gateway Encryption Support (Optional)**: Added a commented-out `encryptionSupport` setting to the Transit Gateway in both networking models, and documentation for combining it with VPC Encryption Controls, enforced through an AWS Organizations declarative policy, to help enforce encryption in transit within a Region.
+
+  **Upgrade Notes**: No change to deployed resources. The setting requires LZA v1.17.0 or later; earlier versions ignore it. Before uncommenting it, review the requirements in the Networking documentation: enablement can take up to 14 days, and every VPC attached to a transit gateway with encryption support is charged for VPC Encryption Controls.
+
 ## [1.3.3] - Unreleased
 
 ### Bug Fixes

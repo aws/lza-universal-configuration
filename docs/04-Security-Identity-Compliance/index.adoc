@@ -762,6 +762,14 @@ Restricts access to the Control Tower log archive bucket to CloudTrail and Confi
 The STS identity perimeter statement (`GRSTSDPB`) blocks cross-account role assumption from any principal outside your organization. Before deploying broadly, use link:https://docs.aws.amazon.com/IAM/latest/UserGuide/what-is-access-analyzer.html[IAM Access Analyzer] to review existing external access findings and confirm no legitimate cross-account patterns—such as third-party tool integrations or partner trust relationships—would be affected. Deploy to a test OU first and validate with CloudTrail before expanding to production OUs.
 ====
 
+=== Declarative Policies
+
+link:https://docs.aws.amazon.com/organizations/latest/userguide/orgs_manage_policies_declarative.html[Declarative policies] set the baseline configuration of an AWS service across the targeted accounts. SCPs and RCPs allow or deny API calls; declarative policies are enforced in the service's control plane. The configuration is maintained when the service adds new features or APIs, when new accounts join the organization, and when new principals and resources are created. Account administrators cannot change an attribute that a declarative policy controls.
+
+The LZA Universal Configuration deploys one declarative policy, `{{ AcceleratorPrefix }}-Vpc-Block-Public-Access-Guardrail` (`lza-core-vpc-block-public-access.json`). It sets VPC Block Public Access to `block_bidirectional`, with exclusions allowed, for the Security and Workloads/Dev, Test, and Prod OUs and the Network and SharedServices accounts.
+
+You can also use a declarative policy to set the mode of https://docs.aws.amazon.com/vpc/latest/userguide/vpc-encryption-controls.html[VPC Encryption Controls] across your accounts. Together with Transit Gateway encryption support, this helps you enforce encryption in transit for traffic within and across VPCs in a Region. The Universal Configuration does not deploy this policy by default. For the policy, its limitations in the Universal Configuration network architecture, and the rollout steps, see link:../05-Networking/index.adoc[Networking Architecture] (Encryption in Transit with VPC Encryption Controls).
+
 === AWS CloudFormation Stack Policy Protection
 
 link:https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/protect-stack-resources.html[AWS CloudFormation Stack Policies] provide an additional layer of infrastructure protection by preventing accidental replacement or deletion of critical networking resources during stack updates. While SCPs and RCPs control who can perform actions and what can be done to resources, stack policies control what CloudFormation itself is allowed to modify within a stack update operation.
@@ -1036,7 +1044,7 @@ The LZA Universal Configuration implements a comprehensive data protection strat
 
 The LZA Universal Configuration implements a comprehensive data protection framework that addresses five critical dimensions, creating layers of defense that work together to safeguard data throughout its lifecycle.
 
-* *Data Perimeter Controls* establish geographical boundaries through Regional Deny mechanisms that enforce data sovereignty requirements and Transit Encryption that implements robust TLS protection for data in motion across networks.
+* *Data Perimeter Controls* establish geographical boundaries through Regional Deny mechanisms that enforce data sovereignty requirements and Transit Encryption that implements robust TLS protection for data in motion across networks. For network-layer encryption in transit within and across VPCs, see link:../05-Networking/index.adoc[Networking Architecture] (Encryption in Transit with VPC Encryption Controls).
 
 * *Encryption Controls* provide essential protection for data at rest through multiple complementary services—AWS KMS handles centralized key management, while EBS Encryption secures volume data, S3 Encryption protects object storage, and Secrets Encryption safeguards sensitive credentials.
 

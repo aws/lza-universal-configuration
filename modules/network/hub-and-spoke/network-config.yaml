@@ -25,6 +25,8 @@ transitGateways:
     defaultRouteTableAssociation: disable
     defaultRouteTablePropagation: disable
     autoAcceptSharingAttachments: enable
+    # Transit Gateway encryption support for VPC Encryption Controls (LZA v1.17.0+); see "Transit Gateway Encryption Support" in docs/05-Networking
+    # encryptionSupport: enable
     routeTables:
       - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
         routes:
