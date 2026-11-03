@@ -1,0 +1,59 @@
+########################################################################################################################################
+# For additional configurable services, features, and property descriptions,                                                           #
+# please review class GlobalConfig reference in our TypeDoc:                                                                           #
+# https://awslabs.github.io/landing-zone-accelerator-on-aws/latest/user-guide/config/#identity-and-access-management-iam-configuration #
+########################################################################################################################################
+
+identityCenter:
+  name: "{{ AcceleratorPrefix }}-IdentityCenter"
+  delegatedAdminAccount: SharedServices
+
+providers: []
+policySets:
+  - deploymentTargets:
+      organizationalUnits:
+        - Root
+      excludedAccounts:
+        - Management
+    policies:
+      - name: "{{ AcceleratorPrefix }}-End-User-Policy"
+        policy: iam-policies/sample-end-user-policy.json
+      # This policy allows instances to retrieve critical data related to proper instance management.
+      #   - https://docs.aws.amazon.com/systems-manager/latest/userguide/ssm-agent-technical-details.html
+      #   - https://docs.aws.amazon.com/systems-manager/latest/userguide/setup-instance-permissions.html
+      - name: "{{ AcceleratorPrefix }}-Default-SSM-S3-Policy"
+        policy: iam-policies/ssm-s3-policy.json
+
+roleSets:
+  - deploymentTargets:
+      organizationalUnits:
+        - Root
+      excludedAccounts:
+        - Management
+    roles:
+      # This role is utilized by the Backup Plans defined in organization-config.yaml
+      # We create this role in every account where we plan to have Backup Plans and Backup Vaults
+      - name: "{{ AcceleratorPrefix }}-Backup-Role"
+        assumedBy:
+          - type: service
+            principal: backup.amazonaws.com
+        policies:
+          awsManaged:
+            - service-role/AWSBackupServiceRolePolicyForBackup
+            - service-role/AWSBackupServiceRolePolicyForRestores
+            - AWSBackupServiceRolePolicyForS3Backup
+            - AWSBackupServiceRolePolicyForS3Restore
+      - name: EC2-Default-SSM-Role
+        instanceProfile: true
+        assumedBy:
+          - type: service
+            principal: ec2.amazonaws.com
+        policies:
+          awsManaged:
+            - AmazonSSMManagedInstanceCore
+            - CloudWatchAgentServerPolicy
+          customerManaged:
+            - "{{ AcceleratorPrefix }}-Default-SSM-S3-Policy"
+        boundaryPolicy: "{{ AcceleratorPrefix }}-End-User-Policy"
+groupSets: []
+userSets: []

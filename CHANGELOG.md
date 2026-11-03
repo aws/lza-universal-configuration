@@ -10,6 +10,12 @@ When applying updates, review the changes in this release alongside your current
 
 ## [1.4.0] - Unreleased
 
+### New Features
+
+- **LZA Universal Configuration Controls Test Pack**: Added the Controls Test Pack as the `cats/` directory and as a release asset (`lza-universal-config-cats-<version>.zip`) and a new [Controls Testing](./docs/09-Controls-Testing/index.adoc) documentation chapter. The test pack runs on [CATS (Control Acceptance Testing Suite)](https://github.com/aws/cats). It checks a deployed environment against all 193 controls in the LZA Compliance Workbook (carried as `lza-compliance-workbook-1.4.0.csv`; the workbook is versioned independently of the Universal Configuration) and reports each result under the workbook control ID, mapped in the OSCAL Assessment Results to the workbook compliance framework you choose for the run with `LZA_OSCAL_FRAMEWORK`. It ships a `cats.yaml` example for each of the four deployment shapes (Control Tower or Organizations-only, CodePipeline or container).
+
+  **Upgrade Notes**: Optional. No change to the configuration files or to deployed resources. The test pack deploys temporary test resources in the accounts you test, and its guardrail tests attempt actions your SCPs and RCPs should deny. Read the `README.md` in the test pack before your first run, and start with a non-production environment. Supported in every partition, with the hub-and-spoke network model; the pack ships a `cats.yaml` for each of the four deployment shapes (Control Tower or Organizations-only, CodePipeline or container).
+
 ### Improvements
 
 - **Transit Gateway Encryption Support (Optional)**: Added a commented-out `encryptionSupport` setting to the Transit Gateway in both networking models, and documentation for combining it with VPC Encryption Controls, enforced through an AWS Organizations declarative policy, to help enforce encryption in transit within a Region.

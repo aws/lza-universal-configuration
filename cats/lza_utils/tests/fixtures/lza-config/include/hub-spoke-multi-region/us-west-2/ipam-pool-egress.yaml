@@ -1,0 +1,12 @@
+name: "{{ AcceleratorPrefix }}-{{ Region2 }}-ipam-egress-pool"
+description: IP regional pool allocation for the Perimeter LZA account
+locale: "{{ Region2 }}"
+provisionedCidrs:
+  - "{{ Region2EgressCidr }}"
+sourceIpamPool: "{{ AcceleratorPrefix }}-{{ Region2 }}-ipam-regional-pool"
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"
+shareTargets:
+  accounts:
+    - Perimeter

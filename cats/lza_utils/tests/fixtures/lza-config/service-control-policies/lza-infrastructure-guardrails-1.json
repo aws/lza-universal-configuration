@@ -1,0 +1,267 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GRNETSEC1",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:DeleteTags"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "ec2:ResourceTag/Accelerator": "${ACCELERATOR_PREFIX}"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRNETSEC2",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:AcceptTransitGateway*",
+        "ec2:AcceptVpc*",
+        "ec2:AllocateAddress",
+        "ec2:AssociateAddress",
+        "ec2:AssociateNatGatewayAddress",
+        "ec2:AssociateTransitGateway*",
+        "ec2:AttachInternetGateway",
+        "ec2:AttachVpnGateway",
+        "ec2:CreateEgressOnlyInternetGateway",
+        "ec2:CreateInternetGateway",
+        "ec2:CreateIpam*",
+        "ec2:CreateNatGateway",
+        "ec2:CreateRoute*",
+        "ec2:CreateSubnet*",
+        "ec2:CreateTransitGateway*",
+        "ec2:CreateVpc",
+        "ec2:CreateVpcEndpoint",
+        "ec2:CreateVpcPeeringConnection",
+        "ec2:CreateVpn*",
+        "ec2:DeleteFlowLogs",
+        "ec2:DeleteEgressOnlyInternetGateway",
+        "ec2:DeleteInternetGateway",
+        "ec2:DeleteIpam",
+        "ec2:DeleteNatGateway",
+        "ec2:DeleteRoute*",
+        "ec2:DeleteSubnet",
+        "ec2:DeleteTransitGateway*",
+        "ec2:DeleteVpc*",
+        "ec2:DeprovisionIpamPoolCidr",
+        "ec2:DetachInternetGateway",
+        "ec2:DisassociateNatGatewayAddress",
+        "ec2:DisassociateRouteTable",
+        "ec2:DisassociateTransitGateway*",
+        "ec2:ModifyIpam*",
+        "ec2:ModifyTransitGateway*",
+        "ec2:ProvisionIpamPoolCidr",
+        "ec2:ReleaseIpamPoolAllocation"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRNFW",
+      "Effect": "Deny",
+      "Action": [
+        "network-firewall:AssociateFirewallPolicy",
+        "network-firewall:CreateFirewall",
+        "network-firewall:CreateFirewallPolicy",
+        "network-firewall:CreateRuleGroup",
+        "network-firewall:DeleteFirewall",
+        "network-firewall:DeleteFirewallPolicy",
+        "network-firewall:DeleteResourcePolicy",
+        "network-firewall:DeleteRuleGroup",
+        "network-firewall:DisassociateSubnets",
+        "network-firewall:UpdateFirewallDeleteProtection",
+        "network-firewall:UpdateFirewallPolicy",
+        "network-firewall:UpdateRuleGroup",
+        "network-firewall:UpdateSubnetChangeProtection"
+      ],
+      "Resource": [
+        "arn:${PARTITION}:network-firewall:*:*:firewall/${ACCELERATOR_PREFIX}*",
+        "arn:${PARTITION}:network-firewall:*:*:firewall-policy/${ACCELERATOR_PREFIX}*",
+        "arn:${PARTITION}:network-firewall:*:*:stateful-rulegroup/${ACCELERATOR_PREFIX}*",
+        "arn:${PARTITION}:network-firewall:*:*:stateless-rulegroup/${ACCELERATOR_PREFIX}*"
+      ],
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GREFS",
+      "Effect": "Deny",
+      "Action": "elasticfilesystem:CreateFileSystem",
+      "Resource": "*",
+      "Condition": {
+        "Bool": {
+          "elasticfilesystem:Encrypted": "false"
+        }
+      }
+    },
+    {
+      "Sid": "GRRDS1",
+      "Effect": "Deny",
+      "Action": "rds:CreateDBInstance",
+      "Resource": "arn:${PARTITION}:rds:*:*:db:*",
+      "Condition": {
+        "StringNotLike": {
+          "rds:DatabaseEngine": [
+            "aurora*"
+          ]
+        },
+        "Bool": {
+          "rds:StorageEncrypted": "false"
+        }
+      }
+    },
+    {
+      "Sid": "GRRDS2",
+      "Effect": "Deny",
+      "Action": "rds:CreateDBCluster",
+      "Resource": "*",
+      "Condition": {
+        "StringLike": {
+          "rds:DatabaseEngine": [
+            "aurora*"
+          ]
+        },
+        "Bool": {
+          "rds:StorageEncrypted": "false"
+        }
+      }
+    },
+    {
+      "Sid": "GRRT531",
+      "Effect": "Deny",
+      "Action": [
+        "route53:CreateVPCAssociationAuthorization",
+        "route53:DeleteVPCAssociationAuthorization"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRRT532",
+      "Effect": "Deny",
+      "Action": [
+        "route53:ChangeResourceRecordSets"
+      ],
+      "Resource": "arn:${PARTITION}:route53:::hostedzone/*",
+      "Condition": {
+        "ForAnyValue:StringLike": {
+          "route53:ChangeResourceRecordSetsNormalizedRecordNames": [
+            "*.*.amazonaws.com",
+            "vpce-*.amazonaws.com",
+            "*.vpce.amazonaws.com",
+            "vpce-svc-*.amazonaws.com"
+          ]
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRAGENTCORE1",
+      "Effect": "Deny",
+      "Action": [
+        "bedrock-agentcore:CreateAgentRuntime",
+        "bedrock-agentcore:UpdateAgentRuntime",
+        "bedrock-agentcore:CreateCodeInterpreter",
+        "bedrock-agentcore:CreateBrowser"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "bedrock-agentcore:subnets": "true",
+          "bedrock-agentcore:securityGroups": "true"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRAGENTCORE2",
+      "Effect": "Deny",
+      "Action": [
+        "bedrock-agentcore:InvokeAgentRuntime",
+        "bedrock-agentcore:InvokeAgentRuntimeForUser"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "aws:SourceVpc": "true"
+        },
+        "BoolIfExists": {
+          "aws:ViaAWSService": "false"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRAGENTCORE3",
+      "Effect": "Deny",
+      "Action": [
+        "bedrock-agentcore:CreateMemory"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "Null": {
+          "bedrock-agentcore:KmsKeyArn": "true"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    }
+  ]
+}
+

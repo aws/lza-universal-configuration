@@ -1,0 +1,392 @@
+###############################################################################################################
+# For additional configurable services, features, and property descriptions,                                  #
+# please review the GlobalConfig class reference in our TypeDoc:                                              #
+# https://awslabs.github.io/landing-zone-accelerator-on-aws/latest/user-guide/config/#global-configuration    #
+###############################################################################################################
+
+# LZA Universal Configuration v1.3.0 is based on LZA v1.16.0
+
+homeRegion: "{{ HomeRegion }}"
+# Add a region based on your requirements
+enabledRegions: [ {{ EnabledRegions }} ]
+managementAccountAccessRole: AWSControlTowerExecution # Cross-account role for LZA resource orchestration
+
+# Global Tags For Supported Resources
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"
+
+# Enable v2 Networking Stacks
+useV2Stacks: true
+
+# Amazon EventBridge Default Event Bus Configurations
+defaultEventBus:
+  policy: event-bus-policies/event-bus-policy.json
+  deploymentTargets:
+    organizationalUnits:
+      - Root
+cloudwatchLogRetentionInDays: 365
+cdkOptions:
+  centralizeBuckets: true
+  useManagementAccessRole: true
+terminationProtection: true
+
+# AWS CloudFormation Stack Policy Protection
+stackPolicy:
+  enable: true
+  protectedTypes:
+    - "AWS::EC2::FlowLog"
+    - "AWS::EC2::InternetGateway"
+    - "AWS::EC2::NatGateway"
+    - "AWS::EC2::PrefixList"
+    - "AWS::EC2::Route"
+    - "AWS::EC2::RouteTable"
+    - "AWS::EC2::SecurityGroup"
+    - "AWS::EC2::Subnet"
+    - "AWS::EC2::SubnetRouteTableAssociation"
+    - "AWS::EC2::TransitGateway"
+    - "AWS::EC2::TransitGatewayPeeringAttachment"
+    - "AWS::EC2::TransitGatewayRoute"
+    - "AWS::EC2::TransitGatewayRouteTable"
+    - "AWS::EC2::TransitGatewayRouteTableAssociation"
+    - "AWS::EC2::TransitGatewayRouteTablePropagation"
+    - "AWS::EC2::TransitGatewayVpcAttachment"
+    - "AWS::EC2::VPC"
+    - "AWS::EC2::VPCCidrBlock"
+    - "AWS::EC2::VPCEndpoint"
+    - "AWS::EC2::VPCGatewayAttachment"
+    - "AWS::NetworkFirewall::Firewall"
+    - "AWS::NetworkFirewall::FirewallPolicy"
+    - "AWS::NetworkFirewall::LoggingConfiguration"
+    - "AWS::NetworkFirewall::RuleGroup"
+    - "AWS::RAM::ResourceShare"
+    - "AWS::Route53Resolver::ResolverEndpoint"
+    - "AWS::Route53Resolver::ResolverRule"
+
+enableOptInRegions: false
+
+# AWS Control Tower Configurations
+controlTower:
+  enable: true # Enables Control Tower
+  landingZone:
+    version: "4.0" # Specifies the Control Tower landing zone version
+    logging:
+      loggingBucketRetentionDays: 365 # Retains general logs for Amazon S3 bucket in Control Tower
+      accessLoggingBucketRetentionDays: 365 # Retains access logs for Amazon S3 bucket in Control Tower
+      organizationTrail: true # Enables organization-wide AWS CloudTrail
+    security:
+      enableIdentityCenterAccess: true # Enables AWS IAM Identity Center for centralized access management
+  # Control Tower Controls Configurations
+  # See the AWS documentation for the identifier list:  https://docs.aws.amazon.com/controltower/latest/controlreference/all-global-identifiers.html
+  controls:
+    # # CONFIG.CLOUDTRAIL.DT.5
+    # #   - Checks if at least one AWS CloudTrail trail is logging Amazon Simple Storage Service (Amazon S3) data events for all S3 buckets
+    - identifier: 1m3wi9y66gi199vwyqmu4lm4l
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # CONFIG.LOGS.DT.1
+    # #   - Checks if Amazon CloudWatch Log Groups are encrypted with any AWS KMS key or a specified AWS KMS key Id
+    - identifier: 497wrm2xnk1wxlf4obrdo7mej
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # CONFIG.IAM.DT.6
+    # #   - Checks whether IAM groups have at least one IAM user
+    - identifier: 3jw8po9x95lr2nob65iaqhqir
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # CONFIG.IAM.DT.5
+    # #   - Checks if the inline policy feature is not in use
+    - identifier: bi738zni6ovf9d6dagobqtk6g
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # CONFIG.EC2.DT.17
+    # #.  - Checks if internet gateways are attached to an authorized virtual private cloud (Amazon VPC)
+    - identifier: 1d908j9c0qtyr5vq7mora1ht2
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # AWS-GR_NO_UNRESTRICTED_ROUTE_TO_IGW
+    # #   - Detect whether public routes exist in the route table for an Internet Gateway (IGW)
+    - identifier: b8pjfqosgkgknznstduvel4rh
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # CONFIG.SAGEMAKER.DT.3
+    # #   - Checks if an AWS Key Management Service (AWS KMS) key is configured for an Amazon SageMaker notebook instance
+    - identifier: 3b7ib9mi87kcw90atgx2nboax
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # CONFIG.SECURITYHUB.DT.1
+    # #   - Checks if AWS Security Hub is enabled for an AWS Account
+    - identifier: 1klk5z4sby5l0cfx65dmq2dsk
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # BACKUP_PLAN_MIN_FREQUENCY_AND_MIN_RETENTION_CHECK
+    # #   - Checks if a backup plan has a backup rule that satisfies the required frequency and retention period
+    - identifier: dagreqi0i3fitenunuuo4q64t
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # BACKUP_RECOVERY_POINT_MANUAL_DELETION_DISABLED
+    # #   - Checks if a backup vault has an attached resource-based policy which prevents deletion of recovery points
+    - identifier: d1wltz1jx8c4aok5062g4kzz3
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # # CONFIG.EC2.DT.10
+    # #   - Checks if Amazon Elastic Compute Cloud (Amazon EC2) instances are protected by a backup plan
+    - identifier: aqh482zxh1libhd8e5pff5r1w
+      enable: true
+      deploymentTargets:
+        organizationalUnits:
+          - Security
+          - Infrastructure
+          - Workloads
+          - Workloads/Sandbox
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+
+# AWS IAM Central Root Management
+centralRootUserManagement:
+  enable: true
+  capabilities:
+    rootCredentialsManagement: true
+    allowRootSessions: true
+
+# SNS Configurations
+snsTopics:
+  deploymentTargets:
+    accounts:
+      - Management # Findings from Audit account are automatically forwarded to CloudWatch Logs
+  topics:
+    - name: SecurityHigh # Used for security high alerts, name will show as aws-accelerator-<SNSTopicName>
+      emailAddresses:
+        - "{{ SecurityHigh }}"
+    - name: SecurityMedium # Used for security medium alerts, name will show as aws-accelerator-<SNSTopicName>
+      emailAddresses:
+        - "{{ SecurityMedium }}"
+    - name: SecurityLow # Used for security low alerts, name will show as aws-accelerator-<SNSTopicName>
+      emailAddresses:
+        - "{{ SecurityLow }}"
+
+# AWS Backup Vault Configuration
+backup:
+  vaults:
+    - name: "{{ AcceleratorPrefix }}-BackupVault"
+      deploymentTargets:
+        organizationalUnits:
+          - Infrastructure
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+
+# Logging Configurations
+logging:
+  account: LogArchive # Centralizes supported log aggregation in LogArchive account
+  # CloudTrail Configurations
+  # In Control Tower based environment, the organization-level CloudTrail trail is managed by Control Tower
+  # LZA CloudTrail settings are disabled to avoid duplication
+  # Enable account-specific CloudTrail configurations as needed
+  cloudtrail:
+    enable: false # Disables LZA enabling CloudTrail
+    organizationTrail: false # Disables LZA enabling organization-level trail
+    organizationTrailSettings:
+      multiRegionTrail: false # Multi-region trail coverage
+      globalServiceEvents: false # Log global service events
+      managementEvents: false # Log management events
+      s3DataEvents: false # Log S3 data events
+      lambdaDataEvents: false # Log Lambda data events
+      sendToCloudWatchLogs: false # Forward to CloudWatch Logs
+      apiErrorRateInsight: false # API error insights
+      apiCallRateInsight: false # API call insights
+  sessionManager:
+    sendToCloudWatchLogs: true # Enables logging of session activity to CloudWatch Logs in each account
+    sendToS3: false # Disables storing session logs in S3 bucket. Using Log Streaming, CloudWatch Logs are stored in centralized S3
+    attachPolicyToIamRoles:
+      - EC2-Default-SSM-Role
+  cloudwatchLogs:
+    dynamicPartitioning: dynamic-partitioning/log-filters.json # Dynamic Filtering for CloudWatch Logs
+  # Access Log Bucket Configurations
+  accessLogBucket:
+    lifecycleRules:
+      - enabled: true # Enables S3 lifecycle rules for S3 access log bucket - aws-accelerator-s3-access-logs-{ACCOUNT_ID}-{REGION}
+        abortIncompleteMultipartUpload: 7 # Deletes incomplete multipart uploads after 7 days
+        expiration: 1000 # Deletes current version of objects after 1000 days from creation
+        noncurrentVersionExpiration: 1000 # Deletes previous versions 1000 days after becoming noncurrent
+        transitions:
+          - storageClass: GLACIER_IR # Current version transitions to Glacier IR
+            transitionAfter: 365 # Transitions after 365 days
+        noncurrentVersionTransitions:
+          - storageClass: GLACIER_IR # Previous version transitions to Glacier IR
+            transitionAfter: 365 # Transitions after 365 days
+  # Central Log Bucket Configurations
+  centralLogBucket:
+    lifecycleRules:
+      - enabled: true # Enables S3 lifecycle rules for central log bucket - aws-accelerator-central-logs-{ACCOUNT_ID}-{REGION}
+        abortIncompleteMultipartUpload: 7
+        expiration: 1000
+        noncurrentVersionExpiration: 1000
+        transitions:
+          - storageClass: GLACIER_IR
+            transitionAfter: 365
+        noncurrentVersionTransitions:
+          - storageClass: GLACIER_IR
+            transitionAfter: 365
+  # Elastic Load Balancer Logging Configurations
+  elbLogBucket:
+    lifecycleRules:
+      - enabled: true # Enables S3 lifecycle rules for ELB access log bucket - - aws-accelerator-elb-access-logs-{ACCOUNT_ID}-{REGION}
+        abortIncompleteMultipartUpload: 7
+        expiration: 1000
+        noncurrentVersionExpiration: 1000
+        transitions:
+          - storageClass: GLACIER_IR
+            transitionAfter: 365
+        noncurrentVersionTransitions:
+          - storageClass: GLACIER_IR
+            transitionAfter: 365
+
+# AWS Cost and Usage Reports
+reports:
+  costAndUsageReport:
+    compression: Parquet # Sets data compression format to Parquet for storage
+    format: Parquet # Defines the output format as Parquet for optimized querying
+    reportName: "{{ AcceleratorPrefix }}-cur" # Name identifier for the Cost and Usage Report
+    s3Prefix: cur # Defines the S3 prefix for the report
+    timeUnit: MONTHLY # Generates reports on a provided interval
+    refreshClosedReports: true # Updates previously generated reports if new charges appear
+    reportVersioning: CREATE_NEW_REPORT # Creates a new report version each time the report is generated
+    lifecycleRules:
+      - enabled: true
+        abortIncompleteMultipartUpload: 7
+        expiration: 365
+        noncurrentVersionExpiration: 365
+  # AWS Budgets Configurations
+  budgets:
+    - deploymentTargets:
+        accounts:
+          - Management # Deploys budget configuration to Management account
+      name: "{{ AcceleratorPrefix }}-budget" # Name identifier for the budget
+      timeUnit: MONTHLY # Sets budget tracking interval
+      type: COST # Sets budget type to cost
+      amount: 2000 # Sets budget limit to 2000 USD
+      includeUpfront: true # Includes upfront costs in budget calculations
+      includeTax: true # Includes taxes in budget calculations
+      includeSupport: true # Includes AWS support costs in budget
+      includeSubscription: true # Includes subscription costs in budget
+      includeRecurring: true # Includes recurring charges in budget
+      includeOtherSubscription: true # Includes other subscription costs in budget
+      includeDiscount: true # Includes discounts in budget calculations
+      includeCredit: false # Excludes credits from budget calculations
+      includeRefund: false # Excludes refunds from budget calculations
+      useBlended: false # Disables use of blended costs
+      useAmortized: false # Disables use of amortized costs
+      unit: USD # Sets budget currency to US Dollars
+      notifications: # Configures notifications for budget thresholds
+        - type: ACTUAL # Notification based on actual spend
+          thresholdType: PERCENTAGE # Threshold type defined as percentage
+          threshold: 100 # Notification at 100% of budget
+          comparisonOperator: GREATER_THAN # Triggers when spending exceeds threshold
+          subscriptionType: EMAIL # Delivers notification via email
+          address: "{{ BudgetsEmail }}" # Email recipient address
+        - type: ACTUAL
+          thresholdType: PERCENTAGE
+          threshold: 90 # 90% threshold notification
+          comparisonOperator: GREATER_THAN
+          subscriptionType: EMAIL
+          address: "{{ BudgetsEmail }}"
+        - type: ACTUAL
+          thresholdType: PERCENTAGE
+          threshold: 80 # 80% threshold notification
+          comparisonOperator: GREATER_THAN
+          subscriptionType: EMAIL
+          address: "{{ BudgetsEmail }}"
+        - type: ACTUAL
+          thresholdType: PERCENTAGE
+          threshold: 75 # 75% threshold notification
+          comparisonOperator: GREATER_THAN
+          subscriptionType: EMAIL
+          address: "{{ BudgetsEmail }}"
+        - type: ACTUAL
+          thresholdType: PERCENTAGE
+          threshold: 50 # 50% threshold notification
+          comparisonOperator: GREATER_THAN
+          subscriptionType: EMAIL
+          address: "{{ BudgetsEmail }}"

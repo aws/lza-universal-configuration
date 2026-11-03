@@ -1,0 +1,30 @@
+name: "{{ AcceleratorPrefix }}-{{ Region2 }}-dns-firewall"
+regions:
+  - "{{ Region2 }}"
+rules:
+  - name: block-aggregate-threats
+    action: BLOCK
+    blockResponse: NODATA
+    managedDomainList: AWSManagedDomainsAggregateThreatList
+    priority: 100
+  - name: block-malware-domains
+    action: BLOCK
+    blockResponse: NODATA
+    managedDomainList: AWSManagedDomainsMalwareDomainList
+    priority: 200
+  - name: block-botnet-cnc
+    action: BLOCK
+    blockResponse: NODATA
+    managedDomainList: AWSManagedDomainsBotnetCommandandControl
+    priority: 300
+shareTargets:
+  accounts:
+    - SharedServices
+    - Perimeter
+  organizationalUnits:
+    - Workloads/Dev
+    - Workloads/Test
+    - Workloads/Prod
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"

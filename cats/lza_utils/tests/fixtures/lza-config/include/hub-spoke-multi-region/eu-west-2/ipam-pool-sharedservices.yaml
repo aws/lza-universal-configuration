@@ -1,0 +1,12 @@
+name: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-sharedservices-pool"
+description: IP regional pool allocation for the SharedServices LZA account
+locale: "{{ Region4 }}"
+provisionedCidrs:
+  - "{{ Region4SharedServicesCidr }}"
+sourceIpamPool: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-regional-pool"
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"
+shareTargets:
+  accounts:
+    - SharedServices

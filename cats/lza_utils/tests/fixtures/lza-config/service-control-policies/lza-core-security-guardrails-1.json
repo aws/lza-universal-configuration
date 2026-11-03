@@ -1,0 +1,66 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "GRNETSEC1",
+            "Effect": "Deny",
+            "Action": [
+                "ec2:CreateInternetGateway",
+                "ec2:CreateVpc"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "ArnNotLike": {
+                    "aws:PrincipalARN": [
+                        "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+                        "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+                        "arn:${PARTITION}:iam::*:role/cdk-accel*"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "GREFS",
+            "Effect": "Deny",
+            "Action": "elasticfilesystem:CreateFileSystem",
+            "Resource": "*",
+            "Condition": {
+                "Bool": {
+                    "elasticfilesystem:Encrypted": "false"
+                }
+            }
+        },
+        {
+            "Sid": "GRRDS1",
+            "Effect": "Deny",
+            "Action": "rds:CreateDBInstance",
+            "Resource": "arn:${PARTITION}:rds:*:*:db:*",
+            "Condition": {
+                "StringNotLike": {
+                    "rds:DatabaseEngine": [
+                        "aurora*"
+                    ]
+                },
+                "Bool": {
+                    "rds:StorageEncrypted": "false"
+                }
+            }
+        },
+        {
+            "Sid": "GRRDS2",
+            "Effect": "Deny",
+            "Action": "rds:CreateDBCluster",
+            "Resource": "*",
+            "Condition": {
+                "StringLike": {
+                    "rds:DatabaseEngine": [
+                        "aurora*"
+                    ]
+                },
+                "Bool": {
+                    "rds:StorageEncrypted": "false"
+                }
+            }
+        }
+    ]
+}

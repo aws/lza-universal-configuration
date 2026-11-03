@@ -1,0 +1,119 @@
+name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints"
+account: Network
+region: "{{ Region4 }}"
+ipamAllocations:
+  - ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-endpoints-pool"
+    netmaskLength: {{ HomeRegionIngressEndpointsVpcMaskLength }}
+defaultSecurityGroupRulesDeletion: true
+internetGateway: false
+enableDnsHostnames: true
+enableDnsSupport: true
+instanceTenancy: default
+queryLogs:
+  - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+routeTables:
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-rt-a"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region4 }}-tgw"
+      - name: S3Gateway
+        type: gatewayEndpoint
+        target: s3
+      - name: DynamoDBGateway
+        type: gatewayEndpoint
+        target: dynamodb
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-rt-b"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region4 }}-tgw"
+      - name: S3Gateway
+        type: gatewayEndpoint
+        target: s3
+      - name: DynamoDBGateway
+        type: gatewayEndpoint
+        target: dynamodb
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-rt-tgw-a"
+    routes: []
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-rt-tgw-b"
+    routes: []
+subnets:
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-rt-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-endpoints-pool"
+      netmaskLength: {{ HomeRegionIngressEndpointsSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-rt-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-endpoints-pool"
+      netmaskLength: {{ HomeRegionIngressEndpointsSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-tgw-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-rt-tgw-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-endpoints-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-tgw-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-rt-tgw-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-endpoints-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+transitGatewayAttachments:
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints"
+    transitGateway:
+      name: "{{ AcceleratorPrefix }}-{{ Region4 }}-tgw"
+      account: Network
+    routeTableAssociations:
+      - "{{ AcceleratorPrefix }}-{{ Region4 }}-tgw-rt-spoke"
+    routeTablePropagations:
+      - "{{ AcceleratorPrefix }}-{{ Region4 }}-tgw-rt-firewall"
+    subnets:
+      - "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-tgw-a"
+      - "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-tgw-b"
+gatewayEndpoints:
+  defaultPolicy: Endpoint-Default
+  endpoints:
+    - service: s3
+    - service: dynamodb
+interfaceEndpoints:
+  defaultPolicy: Endpoint-Default
+  central: true
+  subnets:
+    - "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-a"
+    - "{{ AcceleratorPrefix }}-{{ Region4 }}-endpoints-b"
+  # Note: VPC endpoint availability varies by AWS Region and Availability Zone.
+  # Review and adjust the endpoint list based on your specific region's service availability.
+  # Some endpoints may need to be commented out if not supported in your environment.
+  endpoints:
+    - service: ec2
+    - service: ec2messages
+    - service: ecr.api
+    - service: ecr.dkr
+    - service: kms
+    - service: logs
+    - service: monitoring
+    - service: ssm
+    # - service: ssm-contacts
+    - service: ssm-incidents
+    - service: ssmmessages
+    # Amazon Bedrock AgentCore endpoints
+    - service: bedrock-agentcore
+    - service: bedrock-agentcore-control
+    - service: bedrock-agentcore.gateway
+dnsFirewallRuleGroups:
+  - name: "{{ AcceleratorPrefix }}-{{ Region4 }}-dns-firewall"
+    priority: 101
+    mutationProtection: ENABLED

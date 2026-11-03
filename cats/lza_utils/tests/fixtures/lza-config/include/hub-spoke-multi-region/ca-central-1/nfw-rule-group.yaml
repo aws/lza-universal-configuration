@@ -1,0 +1,35 @@
+name: "{{ AcceleratorPrefix }}-{{ Region3 }}-nfw-stateful-rule-group"
+regions:
+  - "{{ Region3 }}"
+capacity: 1000
+type: STATEFUL
+ruleGroup:
+  rulesSource:
+    rulesFile: firewall-rules/rules.txt
+  ruleVariables:
+    ipSets:
+      - name: HOME_NET
+        definition:
+          - "{{ Region3RegionalCidr }}"
+      - name: HOME_REGION_ENDPOINTS
+        definition:
+          - "{{ Region3EndpointsCidr }}"
+      - name: HOME_REGION_DEV_POOL
+        definition:
+          - "{{ Region3DevWorkloadsCidr }}"
+      - name: HOME_REGION_TEST_POOL
+        definition:
+          - "{{ Region3TestWorkloadsCidr }}"
+      - name: HOME_REGION_PROD_POOL
+        definition:
+          - "{{ Region3ProdWorkloadsCidr }}"
+      - name: HOME_REGION_SHARED_SERVICES_POOL
+        definition:
+          - "{{ Region3SharedServicesCidr }}"
+    portSets:
+      - name: HOME_REGION_SS_PORTS
+        definition: ["443"]
+shareTargets:
+  # Firewall rules are shared automatically with Network account (owner)
+  # Add additional accounts/Organizational units (OUs) only if broader sharing is required
+  accounts: []

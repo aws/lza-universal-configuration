@@ -1,0 +1,1448 @@
+#######################################################################################################################
+# For additional configurable services, features, and property descriptions,                                          #
+# please review the NetworkConfig class reference in our TypeDoc:                                                     #
+# https://awslabs.github.io/landing-zone-accelerator-on-aws/latest/user-guide/config/#network-configuration           #
+#######################################################################################################################
+
+defaultVpc:
+  delete: true
+  excludeAccounts: []
+
+# AWS Transit Gateway Configurations
+transitGateways:
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+    account: Network
+    region: "{{ HomeRegion }}"
+    shareTargets:
+      organizationalUnits:
+        - Infrastructure
+        - Workloads/Dev
+        - Workloads/Test
+        - Workloads/Prod
+    asn: {{ TransitGatewayASN }}
+    dnsSupport: enable
+    vpnEcmpSupport: enable
+    defaultRouteTableAssociation: disable
+    defaultRouteTablePropagation: disable
+    autoAcceptSharingAttachments: enable
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
+        routes:
+          - destinationCidrBlock: 0.0.0.0/0
+            attachment:
+              vpcName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress"
+              account: Perimeter
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-spoke"
+        routes:
+          - destinationCidrBlock: 0.0.0.0/0
+            attachment:
+              vpcName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection"
+              account: Network
+    transitGatewayFlowLogs:
+      maxAggregationInterval: 60
+      destinations:
+        - cloud-watch-logs # Using Log Streaming, CloudWatch Logs are stored in centralized S3
+      defaultFormat: false
+      customFields:
+        - version
+        - resource-type
+        - account-id
+        - tgw-id
+        - tgw-attachment-id
+        - tgw-src-vpc-account-id
+        - tgw-dst-vpc-account-id
+        - tgw-src-vpc-id
+        - tgw-dst-vpc-id
+        - srcaddr
+        - dstaddr
+        - srcport
+        - dstport
+        - protocol
+        - packets
+        - bytes
+        - start
+        - end
+        - log-status
+        - type
+        - tcp-flags
+        - region
+        - flow-direction
+        - packets-lost-no-route
+        - packets-lost-blackhole
+        - pkt-src-aws-service
+        - pkt-dst-aws-service
+
+  - !include include/hub-spoke-multi-region/us-west-2/transit-gateway.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/transit-gateway.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/transit-gateway.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/transit-gateway.yaml
+
+centralNetworkServices:
+  delegatedAdminAccount: Network
+  gatewayLoadBalancers: []
+  ipams:
+    - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam"
+      region: "{{ HomeRegion }}"
+      description: IP regional allocation for LZA
+      operatingRegions:
+        - "{{ HomeRegion }}"
+        - "us-west-2"
+        - "ca-central-1"
+        - "eu-west-2"
+        - "ap-southeast-2"
+      scopes: []
+      pools:
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-global-pool"
+          description: IP global pool allocation for LZA
+          provisionedCidrs:
+            - "{{ GlobalCidr}}"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          description: IP regional pool allocation for LZA
+          provisionedCidrs:
+            - "{{ HomeRegionRegionalCidr}}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-global-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-ingress-pool"
+          description: IP regional pool allocation for the Perimeter LZA account
+          locale: "{{ HomeRegion }}"
+          provisionedCidrs:
+            - "{{ HomeRegionIngressCidr }}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          shareTargets:
+            accounts:
+              - Perimeter
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-egress-pool"
+          description: IP regional pool allocation for the Perimeter LZA account
+          locale: "{{ HomeRegion }}"
+          provisionedCidrs:
+            - "{{ HomeRegionEgressCidr }}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          shareTargets:
+            accounts:
+              - Perimeter
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-inspection-pool"
+          description: IP regional pool allocation for the Network LZA account
+          locale: "{{ HomeRegion }}"
+          provisionedCidrs:
+            - "{{ HomeRegionInspectionCidr }}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          shareTargets:
+            accounts:
+              - Network
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-endpoints-pool"
+          description: IP regional pool allocation for the Network LZA account
+          locale: "{{ HomeRegion }}"
+          provisionedCidrs:
+            - "{{ HomeRegionEndpointsCidr }}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          shareTargets:
+            accounts:
+              - Network
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          description: IP regional pool allocation for the SharedServices LZA account
+          locale: "{{ HomeRegion }}"
+          provisionedCidrs:
+            - "{{ HomeRegionSharedServicesCidr }}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          shareTargets:
+            accounts:
+              - SharedServices
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-dev-pool"
+          description: IP regional pool allocation for Dev LZA accounts
+          locale: "{{ HomeRegion }}"
+          provisionedCidrs:
+            - "{{ HomeRegionDevWorkloadsCidr }}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          shareTargets:
+            organizationalUnits:
+              - Workloads/Dev
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-test-pool"
+          description: IP regional pool allocation for Test LZA accounts
+          locale: "{{ HomeRegion }}"
+          provisionedCidrs:
+            - "{{ HomeRegionTestWorkloadsCidr }}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          shareTargets:
+            organizationalUnits:
+              - Workloads/Test
+        - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-prod-pool"
+          description: IP regional pool allocation for Prod LZA accounts
+          locale: "{{ HomeRegion }}"
+          provisionedCidrs:
+            - "{{ HomeRegionProdWorkloadsCidr }}"
+          sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-regional-pool"
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          shareTargets:
+            organizationalUnits:
+              - Workloads/Prod
+
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-regional.yaml
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-ingress.yaml
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-egress.yaml
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-inspection.yaml
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-endpoints.yaml
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-sharedservices.yaml
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-workloads-dev.yaml
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-workloads-test.yaml
+        - !include include/hub-spoke-multi-region/us-west-2/ipam-pool-workloads-prod.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-regional.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-ingress.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-egress.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-inspection.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-endpoints.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-sharedservices.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-workloads-dev.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-workloads-test.yaml
+        - !include include/hub-spoke-multi-region/ca-central-1/ipam-pool-workloads-prod.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-regional.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-ingress.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-egress.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-inspection.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-endpoints.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-sharedservices.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-workloads-dev.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-workloads-test.yaml
+        - !include include/hub-spoke-multi-region/eu-west-2/ipam-pool-workloads-prod.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-regional.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-ingress.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-egress.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-inspection.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-endpoints.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-sharedservices.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-workloads-dev.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-workloads-test.yaml
+        - !include include/hub-spoke-multi-region/ap-southeast-2/ipam-pool-workloads-prod.yaml
+
+  networkFirewall:
+    firewalls:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-nfw"
+        firewallPolicy: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-nfw-policy"
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-fw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-fw-b"
+        vpc: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection"
+        loggingConfiguration:
+          - destination: cloud-watch-logs # Logs will automatically be forwarded to S3
+            type: ALERT
+          - destination: cloud-watch-logs # Logs will automatically be forwarded to S3
+            type: FLOW
+
+      - !include include/hub-spoke-multi-region/us-west-2/nfw-firewall.yaml
+      - !include include/hub-spoke-multi-region/ca-central-1/nfw-firewall.yaml
+      - !include include/hub-spoke-multi-region/eu-west-2/nfw-firewall.yaml
+      - !include include/hub-spoke-multi-region/ap-southeast-2/nfw-firewall.yaml
+    policies:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-nfw-policy"
+        regions:
+          - "{{ HomeRegion }}"
+        firewallPolicy:
+          statelessDefaultActions: ["aws:forward_to_sfe"]
+          statelessFragmentDefaultActions: ["aws:forward_to_sfe"]
+          statefulRuleGroups:
+            - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-nfw-stateful-rule-group"
+        shareTargets:
+          # Firewall rules are shared automatically with Network account (owner)
+          # Add additional accounts/Organizational units (OUs) only if broader sharing is required
+          accounts: []
+
+      - !include include/hub-spoke-multi-region/us-west-2/nfw-policy.yaml
+      - !include include/hub-spoke-multi-region/ca-central-1/nfw-policy.yaml
+      - !include include/hub-spoke-multi-region/eu-west-2/nfw-policy.yaml
+      - !include include/hub-spoke-multi-region/ap-southeast-2/nfw-policy.yaml
+    rules:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-nfw-stateful-rule-group"
+        regions:
+          - "{{ HomeRegion }}"
+        capacity: 1000
+        type: STATEFUL
+        ruleGroup:
+          rulesSource:
+            rulesFile: firewall-rules/rules.txt
+          ruleVariables:
+            ipSets:
+              - name: HOME_NET
+                definition:
+                  - "{{ HomeRegionRegionalCidr }}"
+              - name: HOME_REGION_ENDPOINTS
+                definition:
+                  - "{{ HomeRegionEndpointsCidr }}"
+              - name: HOME_REGION_DEV_POOL
+                definition:
+                  - "{{ HomeRegionDevWorkloadsCidr }}"
+              - name: HOME_REGION_TEST_POOL
+                definition:
+                  - "{{ HomeRegionTestWorkloadsCidr }}"
+              - name: HOME_REGION_PROD_POOL
+                definition:
+                  - "{{ HomeRegionProdWorkloadsCidr }}"
+              - name: HOME_REGION_SHARED_SERVICES_POOL
+                definition:
+                  - "{{ HomeRegionSharedServicesCidr }}"
+            portSets:
+              - name: HOME_REGION_SS_PORTS
+                definition: ["443"]
+        shareTargets:
+          # Firewall rules are shared automatically with Network account (owner)
+          # Add additional accounts/Organizational units (OUs) only if broader sharing is required
+          accounts: []
+
+      - !include include/hub-spoke-multi-region/us-west-2/nfw-rule-group.yaml
+      - !include include/hub-spoke-multi-region/ca-central-1/nfw-rule-group.yaml
+      - !include include/hub-spoke-multi-region/eu-west-2/nfw-rule-group.yaml
+      - !include include/hub-spoke-multi-region/ap-southeast-2/nfw-rule-group.yaml
+
+  # Amazon Route 53 Resolver
+  route53Resolver:
+    # Route 53 Resolver Query Logging
+    queryLogs:
+      name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+      destinations:
+        - cloud-watch-logs # Using Log Streaming, CloudWatch Logs are stored in centralized S3
+      shareTargets:
+        accounts:
+          - SharedServices
+          - Perimeter
+        organizationalUnits:
+          - Infrastructure
+          - Workloads/Dev
+          - Workloads/Test
+          - Workloads/Prod
+    # Route 53 Resolver DNS Firewall
+    firewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        regions:
+          - "{{ HomeRegion }}"
+        rules:
+          - name: block-aggregate-threats
+            action: BLOCK
+            blockResponse: NODATA
+            managedDomainList: AWSManagedDomainsAggregateThreatList
+            priority: 100
+          - name: block-malware-domains
+            action: BLOCK
+            blockResponse: NODATA
+            managedDomainList: AWSManagedDomainsMalwareDomainList
+            priority: 200
+          - name: block-botnet-cnc
+            action: BLOCK
+            blockResponse: NODATA
+            managedDomainList: AWSManagedDomainsBotnetCommandandControl
+            priority: 300
+        shareTargets:
+          accounts:
+            - SharedServices
+            - Perimeter
+          organizationalUnits:
+            - Workloads/Dev
+            - Workloads/Test
+            - Workloads/Prod
+        tags:
+          - key: Accelerator
+            value: "{{ AcceleratorPrefix }}"
+
+      - !include include/hub-spoke-multi-region/us-west-2/dns-firewall-rule-group.yaml
+      - !include include/hub-spoke-multi-region/ca-central-1/dns-firewall-rule-group.yaml
+      - !include include/hub-spoke-multi-region/eu-west-2/dns-firewall-rule-group.yaml
+      - !include include/hub-spoke-multi-region/ap-southeast-2/dns-firewall-rule-group.yaml
+
+endpointPolicies:
+  # Endpoint policies
+  #   - Use these policies to define standard policies for VPC endpoints
+  - name: Endpoint-Default
+    document: vpc-endpoint-policies/default.json
+  - name: AgentCore-DataPlane
+    document: vpc-endpoint-policies/agentcore-data-plane.json
+  - name: AgentCore-Gateway
+    document: vpc-endpoint-policies/agentcore-gateway.json
+
+vpcs:
+  # VPC Endpoints
+  #  - Deploys to network account
+  #  - Utilizes two AZs for deployment of subnets, leaving space for 3rd AZ
+  #    - Endpoints Subnet
+  #    - Transit Gateway attachment subnet
+  #  - This VPC is intended to host AWS service endpoints
+  #    - Enable API access to services without traversing the Egress VPC (Internet Access)
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints"
+    account: Network
+    region: "{{ HomeRegion }}"
+    ipamAllocations:
+      - ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-endpoints-pool"
+        netmaskLength: {{ HomeRegionIngressEndpointsVpcMaskLength }}
+    defaultSecurityGroupRulesDeletion: true
+    internetGateway: false
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    instanceTenancy: default
+    queryLogs:
+      - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-rt-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-rt-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-rt-tgw-a"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-rt-tgw-b"
+        routes: []
+    subnets:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-rt-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-endpoints-pool"
+          netmaskLength: {{ HomeRegionIngressEndpointsSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-rt-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-endpoints-pool"
+          netmaskLength: {{ HomeRegionIngressEndpointsSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-tgw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-rt-tgw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-endpoints-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-tgw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-rt-tgw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-endpoints-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+    transitGatewayAttachments:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints"
+        transitGateway:
+          name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          account: Network
+        routeTableAssociations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-spoke"
+        routeTablePropagations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-tgw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-tgw-b"
+    gatewayEndpoints:
+      defaultPolicy: Endpoint-Default
+      endpoints:
+        - service: s3
+        - service: dynamodb
+    interfaceEndpoints:
+      defaultPolicy: Endpoint-Default
+      central: true
+      subnets:
+        - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-a"
+        - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-endpoints-b"
+      # Note: VPC endpoint availability varies by AWS Region and Availability Zone.
+      # Review and adjust the endpoint list based on your specific region's service availability.
+      # Some endpoints may need to be commented out if not supported in your environment.
+      endpoints:
+        - service: ec2
+        - service: ec2messages
+        - service: ecr.api
+        - service: ecr.dkr
+        - service: kms
+        - service: logs
+        - service: monitoring
+        - service: ssm
+        # - service: ssm-contacts
+        - service: ssm-incidents
+        - service: ssmmessages
+        # Amazon Bedrock AgentCore endpoints
+        - service: bedrock-agentcore
+        - service: bedrock-agentcore-control
+        - service: bedrock-agentcore.gateway
+    dnsFirewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        priority: 101
+        mutationProtection: ENABLED
+
+  # VPC Ingress
+  #  - Deploys to perimeter account
+  #  - Utilizes two AZs for deployment of subnets, leaving space for 3rd AZ
+  #     - Firewall Subnet - currently not used but provisioned if you require a firewall
+  #     - Public Subnet
+  #     - Transit Gateway attachment subnet
+  #  - This VPC is intended for load balancers or similar services
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress"
+    account: Perimeter
+    region: "{{ HomeRegion }}"
+    ipamAllocations:
+      - ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-ingress-pool"
+        netmaskLength: {{ HomeRegionIngressVpcMaskLength }}
+    defaultSecurityGroupRulesDeletion: true
+    internetGateway: true
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    instanceTenancy: default
+    queryLogs:
+      - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-fw-a"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-fw-b"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-public-a"
+        routes:
+          - name: TgwRoute
+            destination: "{{ GlobalCidr }}"
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: Internet
+            destination: 0.0.0.0/0
+            type: internetGateway
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-public-b"
+        routes:
+          - name: TgwRoute
+            destination: "{{ GlobalCidr }}"
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: Internet
+            destination: 0.0.0.0/0
+            type: internetGateway
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-tgw-a"
+        routes:
+          - name: TgwRoute
+            destination: "{{ GlobalCidr }}"
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-tgw-b"
+        routes:
+          - name: TgwRoute
+            destination: "{{ GlobalCidr }}"
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+    subnets:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-fw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-fw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-ingress-pool"
+          netmaskLength: {{ HomeRegionIngressFwSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-fw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-fw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-ingress-pool"
+          netmaskLength: {{ HomeRegionIngressFwSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-public-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-public-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-ingress-pool"
+          netmaskLength: {{ HomeRegionIngressPublicSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-public-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-public-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-ingress-pool"
+          netmaskLength: {{ HomeRegionIngressPublicSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-tgw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-tgw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-ingress-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-tgw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-rt-tgw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-ingress-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+    transitGatewayAttachments:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress"
+        transitGateway:
+          name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          account: Network
+        routeTableAssociations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-spoke"
+        routeTablePropagations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-tgw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ingress-tgw-b"
+    gatewayEndpoints:
+      defaultPolicy: Endpoint-Default
+      endpoints:
+        - service: s3
+        - service: dynamodb
+    useCentralEndpoints: true
+    dnsFirewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        priority: 101
+        mutationProtection: ENABLED
+
+  # VPC Egress
+  #  - Deploys to perimeter account
+  #  - Utilizes two AZs for deployment of subnets, leaving space for 3rd AZ
+  #     - Firewall Subnet - currently not used but provisioned if you require a firewall
+  #     - Public Subnet
+  #     - Transit Gateway attachment subnet
+  #  - This VPC is intended to host NAT Gateway devices providing internet access for your VPCs
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress"
+    account: Perimeter
+    region: "{{ HomeRegion }}"
+    ipamAllocations:
+      - ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-egress-pool"
+        netmaskLength: {{ HomeRegionEgressVpcMaskLength }}
+    defaultSecurityGroupRulesDeletion: true
+    internetGateway: true
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    instanceTenancy: default
+    queryLogs:
+      - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-fw-a"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-fw-b"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-public-a"
+        routes:
+          - name: TgwRoute
+            destination: "{{ GlobalCidr }}"
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: Internet
+            destination: 0.0.0.0/0
+            type: internetGateway
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-public-b"
+        routes:
+          - name: TgwRoute
+            destination: "{{ GlobalCidr }}"
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: Internet
+            destination: 0.0.0.0/0
+            type: internetGateway
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-tgw-a"
+        routes:
+          - name: TgwRoute
+            destination: "{{ GlobalCidr }}"
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: Internet
+            destination: 0.0.0.0/0
+            type: natGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-public-natgw-a"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-tgw-b"
+        routes:
+          - name: TgwRoute
+            destination: "{{ GlobalCidr }}"
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: Internet
+            destination: 0.0.0.0/0
+            type: natGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-public-natgw-b"
+    subnets:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-fw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-fw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-egress-pool"
+          netmaskLength: {{ HomeRegionEgressFwSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-fw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-fw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-egress-pool"
+          netmaskLength: {{ HomeRegionEgressFwSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-public-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-public-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-egress-pool"
+          netmaskLength: {{ HomeRegionEgressPublicSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-public-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-public-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-egress-pool"
+          netmaskLength: {{ HomeRegionEgressPublicSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-tgw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-tgw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-egress-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-tgw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-rt-tgw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-egress-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+    natGateways:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-public-natgw-a"
+        subnet: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-public-a"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-public-natgw-b"
+        subnet: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-public-b"
+    transitGatewayAttachments:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress"
+        transitGateway:
+          name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          account: Network
+        routeTableAssociations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-spoke"
+        routeTablePropagations: []
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-tgw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-egress-tgw-b"
+    gatewayEndpoints:
+      defaultPolicy: Endpoint-Default
+      endpoints:
+        - service: s3
+        - service: dynamodb
+    useCentralEndpoints: true
+    dnsFirewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        priority: 101
+        mutationProtection: ENABLED
+
+  # VPC Inspection
+  #  - Utilizes AWS Network Firewall for inspection of all North-South and East-West traffic
+  #  - Utilizes two AZs for deployment of subnets, leaving space for 3rd AZ
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection"
+    account: Network
+    region: "{{ HomeRegion }}"
+    ipamAllocations:
+      - ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-inspection-pool"
+        netmaskLength: {{ HomeRegionInspectionVpcMaskLength }}
+    defaultSecurityGroupRulesDeletion: true
+    internetGateway: false
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    instanceTenancy: default
+    queryLogs:
+      - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-rt-tgw-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: networkFirewall
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-nfw"
+            targetAvailabilityZone: a
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-rt-tgw-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: networkFirewall
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-nfw"
+            targetAvailabilityZone: b
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-rt-fw-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-rt-fw-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+    subnets:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-fw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-rt-fw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-inspection-pool"
+          netmaskLength: {{ HomeRegionInspectionFwSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-fw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-rt-fw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-inspection-pool"
+          netmaskLength: {{ HomeRegionInspectionFwSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-tgw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-rt-tgw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-inspection-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-tgw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-rt-tgw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-inspection-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+    transitGatewayAttachments:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection"
+        transitGateway:
+          name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          account: Network
+        options:
+          applianceModeSupport: enable # This is required to ensure symmetric routing and maintain stateful inspection capabilities
+        routeTableAssociations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
+        routeTablePropagations: []
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-tgw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-inspection-tgw-b"
+    useCentralEndpoints: true
+    dnsFirewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        priority: 101
+        mutationProtection: ENABLED
+
+  # VPC SharedServices
+  #  - Deploys to SharedServices account
+  #  - Utilizes two AZs for deployment of subnets, leaving space for 3rd AZ
+  #    - Web / App / Db Subnet
+  #    - Transit Gateway attachment subnet
+  #  - This VPC is intended to host services which your entire organization might rely on
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices"
+    account: SharedServices
+    region: "{{ HomeRegion }}"
+    ipamAllocations:
+      - ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+        netmaskLength: {{ HomeRegionSharedServicesVpcMaskLength }}
+    defaultSecurityGroupRulesDeletion: true
+    internetGateway: false
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    instanceTenancy: default
+    queryLogs:
+      - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-web-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-web-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-app-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-app-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-data-a"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-data-b"
+        routes: []
+
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-tgw-a"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-tgw-b"
+        routes: []
+    subnets:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-web-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-web-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          netmaskLength: {{ HomeRegionSharedServicesWebSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-web-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-web-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          netmaskLength: {{ HomeRegionSharedServicesWebSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-app-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-app-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          netmaskLength: {{ HomeRegionSharedServicesAppSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-app-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-app-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          netmaskLength: {{ HomeRegionSharedServicesAppSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-data-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-data-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          netmaskLength: {{ HomeRegionSharedServicesDataSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-data-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-data-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          netmaskLength: {{ HomeRegionSharedServicesDataSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-tgw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-tgw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-tgw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-rt-tgw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-sharedservices-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+    transitGatewayAttachments:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices"
+        transitGateway:
+          name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          account: Network
+        routeTableAssociations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-spoke"
+        routeTablePropagations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-tgw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-sharedservices-tgw-b"
+    gatewayEndpoints:
+      defaultPolicy: Endpoint-Default
+      endpoints:
+        - service: s3
+        - service: dynamodb
+    useCentralEndpoints: true
+    dnsFirewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        priority: 101
+        mutationProtection: ENABLED
+
+  - !include include/hub-spoke-multi-region/us-west-2/vpc-endpoints.yaml
+  - !include include/hub-spoke-multi-region/us-west-2/vpc-ingress.yaml
+  - !include include/hub-spoke-multi-region/us-west-2/vpc-egress.yaml
+  - !include include/hub-spoke-multi-region/us-west-2/vpc-inspection.yaml
+  - !include include/hub-spoke-multi-region/us-west-2/vpc-sharedservices.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/vpc-endpoints.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/vpc-ingress.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/vpc-egress.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/vpc-inspection.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/vpc-sharedservices.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/vpc-endpoints.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/vpc-ingress.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/vpc-egress.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/vpc-inspection.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/vpc-sharedservices.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/vpc-endpoints.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/vpc-ingress.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/vpc-egress.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/vpc-inspection.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/vpc-sharedservices.yaml
+
+vpcTemplates:
+  # VPC Templates for Dev Workloads
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev"
+    region: "{{ HomeRegion }}"
+    deploymentTargets:
+      organizationalUnits:
+        - Workloads/Dev
+    ipamAllocations:
+      - ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-dev-pool"
+        netmaskLength: {{ HomeRegionDevWorkloadsVpcMaskLength }}
+    defaultSecurityGroupRulesDeletion: true
+    internetGateway: false
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    instanceTenancy: default
+    queryLogs:
+      - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-app-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-app-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-data-a"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-data-b"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-tgw-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-tgw-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+    subnets:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-app-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-app-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-dev-pool"
+          netmaskLength: {{ HomeRegionDevWorkloadsAppSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-app-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-app-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-dev-pool"
+          netmaskLength: {{ HomeRegionDevWorkloadsAppSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-data-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-data-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-dev-pool"
+          netmaskLength: {{ HomeRegionDevWorkloadsDataSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-data-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-data-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-dev-pool"
+          netmaskLength: {{ HomeRegionDevWorkloadsDataSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-tgw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-tgw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-dev-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-tgw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-rt-tgw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-dev-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+    transitGatewayAttachments:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev"
+        transitGateway:
+          name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          account: Network
+        routeTableAssociations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-spoke"
+        routeTablePropagations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-tgw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dev-tgw-b"
+    gatewayEndpoints:
+      defaultPolicy: Endpoint-Default
+      endpoints:
+        - service: s3
+        - service: dynamodb
+    useCentralEndpoints: true
+    dnsFirewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        priority: 101
+        mutationProtection: ENABLED
+
+  # VPC Templates for Test Workloads
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test"
+    region: "{{ HomeRegion }}"
+    deploymentTargets:
+      organizationalUnits:
+        - Workloads/Test
+    ipamAllocations:
+      - ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-test-pool"
+        netmaskLength: {{ HomeRegionTestWorkloadsVpcMaskLength }}
+    defaultSecurityGroupRulesDeletion: true
+    internetGateway: false
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    instanceTenancy: default
+    queryLogs:
+      - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-app-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-app-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-data-a"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-data-b"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-tgw-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-tgw-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+    subnets:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-app-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-app-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-test-pool"
+          netmaskLength: {{ HomeRegionTestWorkloadsAppSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-app-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-app-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-test-pool"
+          netmaskLength: {{ HomeRegionTestWorkloadsAppSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-data-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-data-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-test-pool"
+          netmaskLength: {{ HomeRegionTestWorkloadsDataSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-data-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-data-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-test-pool"
+          netmaskLength: {{ HomeRegionTestWorkloadsDataSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-tgw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-tgw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-test-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-tgw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-rt-tgw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-test-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+    transitGatewayAttachments:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test"
+        transitGateway:
+          name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          account: Network
+        routeTableAssociations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-spoke"
+        routeTablePropagations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-tgw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-test-tgw-b"
+    gatewayEndpoints:
+      defaultPolicy: Endpoint-Default
+      endpoints:
+        - service: s3
+        - service: dynamodb
+    useCentralEndpoints: true
+    dnsFirewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        priority: 101
+        mutationProtection: ENABLED
+
+  # VPC Templates for Prod Workloads
+  - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod"
+    region: "{{ HomeRegion }}"
+    deploymentTargets:
+      organizationalUnits:
+        - Workloads/Prod
+    ipamAllocations:
+      - ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-prod-pool"
+        netmaskLength: {{ HomeRegionProdWorkloadsVpcMaskLength }}
+    defaultSecurityGroupRulesDeletion: true
+    internetGateway: false
+    enableDnsHostnames: true
+    enableDnsSupport: true
+    instanceTenancy: default
+    queryLogs:
+      - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+    routeTables:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-app-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-app-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          - name: S3Gateway
+            type: gatewayEndpoint
+            target: s3
+          - name: DynamoDBGateway
+            type: gatewayEndpoint
+            target: dynamodb
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-data-a"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-data-b"
+        routes: []
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-tgw-a"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-tgw-b"
+        routes:
+          - name: TgwRoute
+            destination: 0.0.0.0/0
+            type: transitGateway
+            target: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+    subnets:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-app-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-app-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-prod-pool"
+          netmaskLength: {{ HomeRegionProdWorkloadsAppSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-app-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-app-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-prod-pool"
+          netmaskLength: {{ HomeRegionProdWorkloadsAppSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-data-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-data-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-prod-pool"
+          netmaskLength: {{ HomeRegionProdWorkloadsDataSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-data-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-data-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-prod-pool"
+          netmaskLength: {{ HomeRegionProdWorkloadsDataSubnetMaskLength }}
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-tgw-a"
+        availabilityZone: a
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-tgw-a"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-prod-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-tgw-b"
+        availabilityZone: b
+        routeTable: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-rt-tgw-b"
+        ipamAllocation:
+          ipamPoolName: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-workloads-prod-pool"
+          netmaskLength: 28
+        tags:
+          - key: SubnetType
+            value: "{{ AcceleratorPrefix }}-Tgw"
+    transitGatewayAttachments:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod"
+        transitGateway:
+          name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw"
+          account: Network
+        routeTableAssociations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-spoke"
+        routeTablePropagations:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-tgw-rt-firewall"
+        subnets:
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-tgw-a"
+          - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-prod-tgw-b"
+    gatewayEndpoints:
+      defaultPolicy: Endpoint-Default
+      endpoints:
+        - service: s3
+        - service: dynamodb
+    useCentralEndpoints: true
+    dnsFirewallRuleGroups:
+      - name: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-dns-firewall"
+        priority: 101
+        mutationProtection: ENABLED
+
+
+# VPC Flow Logs
+#   - Logs sent to CloudWatch Logs which are then forwarded to the log account's central logging bucket
+#   - Dynamic filter created to use prefix for flow logs
+
+  - !include include/hub-spoke-multi-region/us-west-2/vpc-template-dev.yaml
+  - !include include/hub-spoke-multi-region/us-west-2/vpc-template-test.yaml
+  - !include include/hub-spoke-multi-region/us-west-2/vpc-template-prod.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/vpc-template-dev.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/vpc-template-test.yaml
+  - !include include/hub-spoke-multi-region/ca-central-1/vpc-template-prod.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/vpc-template-dev.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/vpc-template-test.yaml
+  - !include include/hub-spoke-multi-region/eu-west-2/vpc-template-prod.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/vpc-template-dev.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/vpc-template-test.yaml
+  - !include include/hub-spoke-multi-region/ap-southeast-2/vpc-template-prod.yaml
+vpcFlowLogs:
+  trafficType: ALL
+  maxAggregationInterval: 600
+  destinations:
+    - cloud-watch-logs
+  destinationsConfig:
+    cloudWatchLogs:
+      retentionInDays: 30
+  defaultFormat: false
+  customFields:
+    - version
+    - account-id
+    - interface-id
+    - srcaddr
+    - dstaddr
+    - srcport
+    - dstport
+    - protocol
+    - packets
+    - bytes
+    - start
+    - end
+    - action
+    - log-status
+    - vpc-id
+    - subnet-id
+    - instance-id
+    - tcp-flags
+    - type
+    - pkt-srcaddr
+    - pkt-dstaddr
+    - region
+    - az-id
+    - pkt-src-aws-service
+    - pkt-dst-aws-service
+    - flow-direction
+    - traffic-path

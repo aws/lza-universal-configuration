@@ -1,0 +1,89 @@
+name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection"
+account: Network
+region: "{{ Region5 }}"
+ipamAllocations:
+  - ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-inspection-pool"
+    netmaskLength: {{ HomeRegionInspectionVpcMaskLength }}
+defaultSecurityGroupRulesDeletion: true
+internetGateway: false
+enableDnsHostnames: true
+enableDnsSupport: true
+instanceTenancy: default
+queryLogs:
+  - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+routeTables:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-rt-tgw-a"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: networkFirewall
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-nfw"
+        targetAvailabilityZone: a
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-rt-tgw-b"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: networkFirewall
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-nfw"
+        targetAvailabilityZone: b
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-rt-fw-a"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-rt-fw-b"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+subnets:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-fw-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-rt-fw-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-inspection-pool"
+      netmaskLength: {{ HomeRegionInspectionFwSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-fw-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-rt-fw-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-inspection-pool"
+      netmaskLength: {{ HomeRegionInspectionFwSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-tgw-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-rt-tgw-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-inspection-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-tgw-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-rt-tgw-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-inspection-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+transitGatewayAttachments:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection"
+    transitGateway:
+      name: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      account: Network
+    options:
+      applianceModeSupport: enable # This is required to ensure symmetric routing and maintain stateful inspection capabilities
+    routeTableAssociations:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw-rt-firewall"
+    routeTablePropagations: []
+    subnets:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-tgw-a"
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-tgw-b"
+useCentralEndpoints: true
+dnsFirewallRuleGroups:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-dns-firewall"
+    priority: 101
+    mutationProtection: ENABLED

@@ -1,0 +1,12 @@
+name: "{{ AcceleratorPrefix }}-{{ Region2 }}-ipam-inspection-pool"
+description: IP regional pool allocation for the Network LZA account
+locale: "{{ Region2 }}"
+provisionedCidrs:
+  - "{{ Region2InspectionCidr }}"
+sourceIpamPool: "{{ AcceleratorPrefix }}-{{ Region2 }}-ipam-regional-pool"
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"
+shareTargets:
+  accounts:
+    - Network

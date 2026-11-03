@@ -1,0 +1,155 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "NotAction": ["iam:*", "organizations:*", "account:*"],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:Get*",
+        "iam:List*",
+        "account:GetAccountInformation",
+        "account:List*",
+        "organizations:List*",
+        "organizations:Describe*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "iam:CreateServiceLinkedRole",
+        "iam:DeleteServiceLinkedRole",
+        "iam:PassRole",
+        "iam:DeleteRole",
+        "iam:CreateInstanceProfile",
+        "iam:DeleteInstanceProfile",
+        "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:PutRolePolicy",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:AttachRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:DeleteRolePolicy",
+        "ec2:*Tag*",
+        "s3:*Tag*",
+        "kms:*Tag*",
+        "iam:*Tag*",
+        "cloudformation:*Tag*",
+        "sagemaker:*Tag*"
+      ],
+      "NotResource": [
+        "arn:${PARTITION}:iam::*:role/aws-controltower-*",
+        "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}-*",
+        "arn:${PARTITION}:iam::*:role/AWSControlTowerExecution",
+        "arn:${PARTITION}:iam::*:role/AWSCloudFormationStackSetExecutionRole",
+        "arn:${PARTITION}:iam::*:role/cdk-accel-*"
+      ]
+    },
+    {
+      "Sid": "EnforceBoundary",
+      "Effect": "Allow",
+      "Action": ["iam:CreateRole", "iam:PutRolePermissionsBoundary"],
+      "NotResource": [
+        "arn:${PARTITION}:iam::*:role/aws-controltower-*",
+        "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}-*",
+        "arn:${PARTITION}:iam::*:role/AWSControlTowerExecution",
+        "arn:${PARTITION}:iam::*:role/AWSCloudFormationStackSetExecutionRole",
+        "arn:${PARTITION}:iam::*:role/cdk-accel-*"
+      ],
+      "Condition": {
+        "ArnLike": {
+          "iam:PermissionsBoundary": "arn:${PARTITION}:iam::*:policy/${ACCELERATOR_PREFIX}-End-User-Policy"
+        }
+      }
+    },
+    {
+      "Sid": "DenyChangesToBoundaryPolicy",
+      "Effect": "Allow",
+      "Action": [
+        "iam:DeletePolicy",
+        "iam:CreatePolicyVersion",
+        "iam:CreatePolicy",
+        "iam:DeletePolicyVersion",
+        "iam:SetDefaultPolicyVersion"
+      ],
+      "NotResource": [
+        "arn:${PARTITION}:iam::*:policy/${ACCELERATOR_PREFIX}-End-User-Policy",
+        "arn:${PARTITION}:iam::*:policy/${ACCELERATOR_PREFIX}-*"
+      ]
+    },
+    {
+      "Sid": "DenyVPCChanges",
+      "Effect": "Deny",
+      "Action": [
+        "ec2:AcceptTransitGateway*",
+        "ec2:AcceptVpcPeeringConnection",
+        "ec2:AssignPrivateNatGatewayAddress",
+        "ec2:AssociateClientVpnTargetNetwork",
+        "ec2:AssociateNatGatewayAddress",
+        "ec2:AssociateRouteTable",
+        "ec2:AssociateSubnetCidrBlock",
+        "ec2:AssociateVpcCidrBlock",
+        "ec2:AttachClassicLinkVpc",
+        "ec2:AttachInternetGateway",
+        "ec2:AttachVpnGateway",
+        "ec2:AuthorizeClientVpnIngress",
+        "ec2:CreateCarrierGateway",
+        "ec2:CreateClientVpn*",
+        "ec2:CreateCoip*",
+        "ec2:CreateCustomerGateway",
+        "ec2:CreateDefaultSubnet",
+        "ec2:CreateDefaultVpc",
+        "ec2:CreateEgressOnlyInternetGateway",
+        "ec2:CreateInternetGateway",
+        "ec2:CreateLocalGateway*",
+        "ec2:CreateNatGateway",
+        "ec2:CreatePublicIpv4Pool",
+        "ec2:CreateRoute*",
+        "ec2:CreateSubnet",
+        "ec2:CreateTransitGateway*",
+        "ec2:CreateVpc*",
+        "ec2:CreateVpn*",
+        "ec2:DeleteRoute*",
+        "ec2:DeleteSubnet",
+        "ec2:DeleteVpc",
+        "ec2:ModifyAvailabilityZoneGroup",
+        "ec2:ModifyClientVpnEndpoint",
+        "ec2:ModifyLocalGatewayRoute",
+        "ec2:ModifySubnetAttribute",
+        "ec2:ModifyTransitGateway*",
+        "ec2:ModifyVpc*",
+        "ec2:ModifyVpn*",
+        "ec2:ProvisionPublicIpv4PoolCidr",
+        "ec2:RegisterTransitGateway*",
+        "ec2:RejectTransitGateway*",
+        "ec2:RejectVpcPeeringConnection",
+        "ec2:ReplaceRoute*",
+        "ec2:ReplaceTransitGatewayRoute"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DenyUseOfTgwSubnets",
+      "Effect": "Deny",
+      "Action": ["ec2:RunInstances"],
+      "Resource": ["arn:${PARTITION}:ec2:*:*:subnet/*"],
+      "Condition": {
+        "ForAnyValue:StringEqualsIfExists": {
+          "aws:ResourceTag/SubnetType": "${ACCELERATOR_PREFIX}-Tgw"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/aws-controltower-*",
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}-*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel-*"
+          ]
+        }
+      }
+    }
+  ]
+}

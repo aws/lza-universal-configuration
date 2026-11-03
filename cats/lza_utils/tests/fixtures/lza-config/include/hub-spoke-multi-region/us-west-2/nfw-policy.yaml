@@ -1,0 +1,12 @@
+name: "{{ AcceleratorPrefix }}-{{ Region2 }}-nfw-policy"
+regions:
+  - "{{ Region2 }}"
+firewallPolicy:
+  statelessDefaultActions: ["aws:forward_to_sfe"]
+  statelessFragmentDefaultActions: ["aws:forward_to_sfe"]
+  statefulRuleGroups:
+    - name: "{{ AcceleratorPrefix }}-{{ Region2 }}-nfw-stateful-rule-group"
+shareTargets:
+  # Firewall rules are shared automatically with Network account (owner)
+  # Add additional accounts/Organizational units (OUs) only if broader sharing is required
+  accounts: []

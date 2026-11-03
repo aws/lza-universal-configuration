@@ -1,0 +1,136 @@
+name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices"
+account: SharedServices
+region: "{{ Region5 }}"
+ipamAllocations:
+  - ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+    netmaskLength: {{ HomeRegionSharedServicesVpcMaskLength }}
+defaultSecurityGroupRulesDeletion: true
+internetGateway: false
+enableDnsHostnames: true
+enableDnsSupport: true
+instanceTenancy: default
+queryLogs:
+  - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+routeTables:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-web-a"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-web-b"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-app-a"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      - name: S3Gateway
+        type: gatewayEndpoint
+        target: s3
+      - name: DynamoDBGateway
+        type: gatewayEndpoint
+        target: dynamodb
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-app-b"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      - name: S3Gateway
+        type: gatewayEndpoint
+        target: s3
+      - name: DynamoDBGateway
+        type: gatewayEndpoint
+        target: dynamodb
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-data-a"
+    routes: []
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-data-b"
+    routes: []
+
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-tgw-a"
+    routes: []
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-tgw-b"
+    routes: []
+subnets:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-web-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-web-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+      netmaskLength: {{ HomeRegionSharedServicesWebSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-web-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-web-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+      netmaskLength: {{ HomeRegionSharedServicesWebSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-app-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-app-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+      netmaskLength: {{ HomeRegionSharedServicesAppSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-app-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-app-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+      netmaskLength: {{ HomeRegionSharedServicesAppSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-data-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-data-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+      netmaskLength: {{ HomeRegionSharedServicesDataSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-data-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-data-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+      netmaskLength: {{ HomeRegionSharedServicesDataSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-tgw-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-tgw-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-tgw-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-rt-tgw-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-sharedservices-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+transitGatewayAttachments:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices"
+    transitGateway:
+      name: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      account: Network
+    routeTableAssociations:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw-rt-spoke"
+    routeTablePropagations:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw-rt-firewall"
+    subnets:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-tgw-a"
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-sharedservices-tgw-b"
+gatewayEndpoints:
+  defaultPolicy: Endpoint-Default
+  endpoints:
+    - service: s3
+    - service: dynamodb
+useCentralEndpoints: true
+dnsFirewallRuleGroups:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-dns-firewall"
+    priority: 101
+    mutationProtection: ENABLED

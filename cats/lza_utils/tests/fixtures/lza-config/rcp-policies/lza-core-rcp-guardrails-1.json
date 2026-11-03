@@ -1,0 +1,203 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "GRS3DPB",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "s3:PutObject*",
+                "s3:DeleteObject*",
+                "s3:AbortMultipartUpload",
+                "s3:RestoreObject",
+                "s3:InitiateReplication",
+                "s3:PutReplicationConfiguration",
+                "s3:CreateBucket",
+                "s3:DeleteBucket",
+                "s3:PutBucketPolicy",
+                "s3:DeleteBucketPolicy"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "BoolIfExists": {
+                    "aws:PrincipalIsAWSService": "false"
+                },
+                "StringNotEqualsIfExists": {
+                    "aws:PrincipalOrgID": "${ORG_ID}"
+                }
+            }
+        },
+        {
+            "Sid": "GRECDP",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "s3:*",
+                "sqs:*",
+                "kms:*",
+                "secretsmanager:*",
+                "sts:*"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringNotEqualsIfExists": {
+                    "aws:SourceOrgID": "${ORG_ID}"
+                },
+                "Bool": {
+                    "aws:PrincipalIsAWSService": "true"
+                },
+                "Null": {
+                    "aws:SourceArn": "false"
+                }
+            }
+        },
+        {
+            "Sid": "GRRST",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "sts:*",
+                "s3:*",
+                "sqs:*",
+                "secretsmanager:*",
+                "kms:*"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "BoolIfExists": {
+                    "aws:SecureTransport": "false"
+                }
+            }
+        },
+        {
+            "Sid": "GRKMS",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "kms:CancelKeyDeletion",
+                "kms:DeleteAlias",
+                "kms:DisableKey",
+                "kms:DisableKeyRotation",
+                "kms:EnableKey",
+                "kms:ImportKeyMaterial",
+                "kms:PutKeyPolicy",
+                "kms:ScheduleKeyDeletion",
+                "kms:TagResource",
+                "kms:UntagResource",
+                "kms:UpdateAlias",
+                "kms:UpdateKeyDescription"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceTag/Accelerator": "${ACCELERATOR_PREFIX}"
+                },
+                "ArnNotLike": {
+                    "aws:PrincipalARN": [
+                        "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+                        "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+                        "arn:${PARTITION}:iam::*:role/cdk-accel*"
+                    ]
+                },
+                "BoolIfExists": {
+                    "aws:PrincipalIsAWSService": "false"
+                }
+            }
+        },
+        {
+            "Sid": "GRSTSDPB",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "sts:AssumeRole",
+                "sts:AssumeRoleWithSAML",
+                "sts:AssumeRoleWithWebIdentity"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "BoolIfExists": {
+                    "aws:PrincipalIsAWSService": "false"
+                },
+                "StringNotEqualsIfExists": {
+                    "aws:PrincipalOrgID": "${ORG_ID}"
+                }
+            }
+        },
+        {
+            "Sid": "GRSQSDPB",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "sqs:SendMessage",
+                "sqs:ReceiveMessage",
+                "sqs:DeleteMessage",
+                "sqs:PurgeQueue",
+                "sqs:CreateQueue",
+                "sqs:DeleteQueue",
+                "sqs:SetQueueAttributes",
+                "sqs:AddPermission",
+                "sqs:RemovePermission"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "BoolIfExists": {
+                    "aws:PrincipalIsAWSService": "false"
+                },
+                "StringNotEqualsIfExists": {
+                    "aws:PrincipalOrgID": "${ORG_ID}"
+                }
+            }
+        },
+        {
+            "Sid": "GSMDPB",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "secretsmanager:CreateSecret",
+                "secretsmanager:DeleteSecret",
+                "secretsmanager:PutSecretValue",
+                "secretsmanager:UpdateSecret",
+                "secretsmanager:RestoreSecret",
+                "secretsmanager:RotateSecret",
+                "secretsmanager:PutResourcePolicy",
+                "secretsmanager:DeleteResourcePolicy"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "BoolIfExists": {
+                    "aws:PrincipalIsAWSService": "false"
+                },
+                "StringNotEqualsIfExists": {
+                    "aws:PrincipalOrgID": "${ORG_ID}"
+                }
+            }
+        },
+        {
+            "Sid": "GRS3OBJ",
+            "Effect": "Deny",
+            "Principal": "*",
+            "Action": [
+                "s3:DeleteObject",
+                "s3:GetObject",
+                "s3:PutObject"
+            ],
+            "Resource": "arn:${PARTITION}:s3:::aws-controltower-logs-${LOGARCHIVE_ACCOUNT_ID}-${HOME_REGION}/*",
+            "Condition": {
+                "ForAllValues:StringNotEquals": {
+                    "aws:CalledVia": [
+                        "config.amazonaws.com",
+                        "cloudtrail.amazonaws.com"
+                    ]
+                },
+                "ArnNotLike": {
+                    "aws:PrincipalARN": [
+                        "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}"
+                    ]
+                },
+                "BoolIfExists": {
+                    "aws:PrincipalIsAWSService": "false"
+                }
+            }
+        }
+    ]
+}

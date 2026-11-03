@@ -1,0 +1,121 @@
+name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test"
+region: "{{ Region5 }}"
+deploymentTargets:
+  organizationalUnits:
+    - Workloads/Test
+ipamAllocations:
+  - ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-workloads-test-pool"
+    netmaskLength: {{ HomeRegionTestWorkloadsVpcMaskLength }}
+defaultSecurityGroupRulesDeletion: true
+internetGateway: false
+enableDnsHostnames: true
+enableDnsSupport: true
+instanceTenancy: default
+queryLogs:
+  - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+routeTables:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-app-a"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      - name: S3Gateway
+        type: gatewayEndpoint
+        target: s3
+      - name: DynamoDBGateway
+        type: gatewayEndpoint
+        target: dynamodb
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-app-b"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      - name: S3Gateway
+        type: gatewayEndpoint
+        target: s3
+      - name: DynamoDBGateway
+        type: gatewayEndpoint
+        target: dynamodb
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-data-a"
+    routes: []
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-data-b"
+    routes: []
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-tgw-a"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-tgw-b"
+    routes:
+      - name: TgwRoute
+        destination: 0.0.0.0/0
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+subnets:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-app-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-app-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-workloads-test-pool"
+      netmaskLength: {{ HomeRegionTestWorkloadsAppSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-app-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-app-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-workloads-test-pool"
+      netmaskLength: {{ HomeRegionTestWorkloadsAppSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-data-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-data-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-workloads-test-pool"
+      netmaskLength: {{ HomeRegionTestWorkloadsDataSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-data-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-data-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-workloads-test-pool"
+      netmaskLength: {{ HomeRegionTestWorkloadsDataSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-tgw-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-tgw-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-workloads-test-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-tgw-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-test-rt-tgw-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-workloads-test-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+transitGatewayAttachments:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-test"
+    transitGateway:
+      name: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      account: Network
+    routeTableAssociations:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw-rt-spoke"
+    routeTablePropagations:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw-rt-firewall"
+    subnets:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-test-tgw-a"
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-test-tgw-b"
+gatewayEndpoints:
+  defaultPolicy: Endpoint-Default
+  endpoints:
+    - service: s3
+    - service: dynamodb
+useCentralEndpoints: true
+dnsFirewallRuleGroups:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-dns-firewall"
+    priority: 101
+    mutationProtection: ENABLED

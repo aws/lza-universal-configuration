@@ -1,0 +1,18 @@
+{
+    "Statement": [
+        {
+            "Sid": "AllowGatewayInvocationOrgOnly",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "bedrock-agentcore:InvokeGateway"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceOrgID": "${ORG_ID}"
+                }
+            }
+        }
+    ]
+}

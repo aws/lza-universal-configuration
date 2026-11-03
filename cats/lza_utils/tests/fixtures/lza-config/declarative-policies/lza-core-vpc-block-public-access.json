@@ -1,0 +1,14 @@
+{
+    "ec2_attributes": {
+        "vpc_block_public_access": {
+            "internet_gateway_block": {
+                "mode": {
+                    "@@assign": "block_bidirectional"
+                },
+                "exclusions_allowed": {
+                    "@@assign": "enabled"
+                }
+            }
+        }
+    }
+}

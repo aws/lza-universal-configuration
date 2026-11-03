@@ -1,0 +1,218 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "LZAGSCP1AndSCP6ConfigRules",
+      "Effect": "Allow",
+      "Action": "config:DeleteConfigRule",
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP2CloudTrail",
+      "Effect": "Allow",
+      "Action": "cloudtrail:UpdateTrail",
+      "Resource": "arn:*:cloudtrail:*:*:trail/*"
+    },
+    {
+      "Sid": "LZAGSCP3Lambda",
+      "Effect": "Allow",
+      "Action": "lambda:UpdateFunctionConfiguration",
+      "Resource": "arn:*:lambda:*:*:function:*"
+    },
+    {
+      "Sid": "LZAGSCP4Sns",
+      "Effect": "Allow",
+      "Action": "sns:SetTopicAttributes",
+      "Resource": "arn:*:sns:*:*:*"
+    },
+    {
+      "Sid": "LZAGSCP5Ebs",
+      "Effect": "Allow",
+      "Action": "ec2:DisableEbsEncryptionByDefault",
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP7AndSCP8Logs",
+      "Effect": "Allow",
+      "Action": [
+        "logs:PutRetentionPolicy",
+        "logs:DeleteLogStream"
+      ],
+      "Resource": "arn:*:logs:*:*:log-group:*"
+    },
+    {
+      "Sid": "LZAGSCP9PasswordPolicy",
+      "Effect": "Allow",
+      "Action": "iam:UpdateAccountPasswordPolicy",
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP10DeleteRole",
+      "Effect": "Allow",
+      "Action": "iam:DeleteRole",
+      "Resource": "arn:*:iam::*:role/*-CATS-SCP-Test-Role"
+    },
+    {
+      "Sid": "LZAGSCP11GuardDuty",
+      "Effect": "Allow",
+      "Action": "guardduty:UpdateDetector",
+      "Resource": "arn:*:guardduty:*:*:detector/*"
+    },
+    {
+      "Sid": "LZAGSCP12SecurityHub",
+      "Effect": "Allow",
+      "Action": "securityhub:DisableSecurityHub",
+      "Resource": "arn:*:securityhub:*:*:hub/default"
+    },
+    {
+      "Sid": "LZAGSCP13Macie",
+      "Effect": "Allow",
+      "Action": "macie2:DisableMacie",
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP14CloudFormation",
+      "Effect": "Allow",
+      "Action": "cloudformation:DeleteStack",
+      "Resource": "arn:*:cloudformation:*:*:stack/*"
+    },
+    {
+      "Sid": "LZAGSCP15SsmParameters",
+      "Effect": "Allow",
+      "Action": "ssm:DeleteParameter",
+      "Resource": "arn:*:ssm:*:*:parameter/*"
+    },
+    {
+      "Sid": "LZAGSCP16S3BucketPolicy",
+      "Effect": "Allow",
+      "Action": "s3:DeleteBucketPolicy",
+      "Resource": "arn:*:s3:::*"
+    },
+    {
+      "Sid": "LZAGSCP18EventBridge",
+      "Effect": "Allow",
+      "Action": "events:DeleteRule",
+      "Resource": "arn:*:events:*:*:rule/*"
+    },
+    {
+      "Sid": "LZAGSCP19SCP27SCP37AgentCore",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock-agentcore:CreateBrowser",
+        "bedrock-agentcore:DeleteBrowser",
+        "bedrock-agentcore:InvokeAgentRuntime",
+        "bedrock-agentcore:CreateMemory",
+        "bedrock-agentcore:DeleteMemory"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP20ToSCP24Ec2Network",
+      "Effect": "Allow",
+      "Action": [
+        "ec2:CreateDefaultVpc",
+        "ec2:CreateInternetGateway",
+        "ec2:CreateEgressOnlyInternetGateway",
+        "ec2:DetachInternetGateway",
+        "ec2:CreateVpc",
+        "ec2:AllocateAddress",
+        "ec2:CreateIpam",
+        "ec2:DeleteIpam",
+        "ec2:CreateNatGateway",
+        "ec2:DeleteNatGateway",
+        "ec2:CreateTransitGateway",
+        "ec2:DeleteTransitGateway"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP25Ram",
+      "Effect": "Allow",
+      "Action": "ram:UpdateResourceShare",
+      "Resource": "arn:*:ram:*:*:resource-share/*"
+    },
+    {
+      "Sid": "LZAGSCP26AccessAnalyzer",
+      "Effect": "Allow",
+      "Action": "access-analyzer:DeleteAnalyzer",
+      "Resource": "arn:*:access-analyzer:*:*:analyzer/*"
+    },
+    {
+      "Sid": "LZAGSCP28AccountRegions",
+      "Effect": "Allow",
+      "Action": "account:EnableRegion",
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP29Kinesis",
+      "Effect": "Allow",
+      "Action": [
+        "kinesis:CreateStream",
+        "kinesis:DeleteStream"
+      ],
+      "Resource": "arn:*:kinesis:*:*:stream/*-cats-scp-test-stream"
+    },
+    {
+      "Sid": "LZAGSCP30Firehose",
+      "Effect": "Allow",
+      "Action": [
+        "firehose:CreateDeliveryStream",
+        "firehose:DeleteDeliveryStream"
+      ],
+      "Resource": "arn:*:firehose:*:*:deliverystream/*-cats-scp-test-delivery-stream"
+    },
+    {
+      "Sid": "LZAGSCP31NetworkFirewall",
+      "Effect": "Allow",
+      "Action": "network-firewall:CreateRuleGroup",
+      "Resource": "arn:*:network-firewall:*:*:stateless-rulegroup/*-cats-scp-test"
+    },
+    {
+      "Sid": "LZAGSCP33Efs",
+      "Effect": "Allow",
+      "Action": "elasticfilesystem:CreateFileSystem",
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP34Rds",
+      "Effect": "Allow",
+      "Action": "rds:CreateDBInstance",
+      "Resource": [
+        "arn:*:rds:*:*:db:cats-scp-test-*",
+        "arn:*:rds:*:*:og:default*",
+        "arn:*:rds:*:*:pg:default*",
+        "arn:*:rds:*:*:subgrp:default"
+      ]
+    },
+    {
+      "Sid": "LZAGSCP35Organizations",
+      "Effect": "Allow",
+      "Action": "organizations:LeaveOrganization",
+      "Resource": "*"
+    },
+    {
+      "Sid": "LZAGSCP36UntagRole",
+      "Effect": "Allow",
+      "Action": "iam:UntagRole",
+      "Resource": "arn:*:iam::*:role/*-Backup-Role"
+    },
+    {
+      "Sid": "LZAGSCP38InstallerVpcTags",
+      "Effect": "Allow",
+      "Action": "ec2:DeleteTags",
+      "Resource": "arn:*:ec2:*:*:vpc/*"
+    },
+    {
+      "Sid": "LZAGSCP38InstallerModuleLogGroup",
+      "Effect": "Allow",
+      "Action": "logs:DeleteLogGroup",
+      "Resource": "arn:*:logs:*:*:log-group:*-Module-Verbose-Logs"
+    },
+    {
+      "Sid": "LZAGRCP13Kms",
+      "Effect": "Allow",
+      "Action": "kms:UpdateKeyDescription",
+      "Resource": "arn:*:kms:*:*:key/*"
+    }
+  ]
+}

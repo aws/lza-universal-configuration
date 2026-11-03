@@ -135,3 +135,7 @@ globalReplacements:
 After updating the mandatory configuration files, push all the changes to your Configuration Repository Location.
 
 TIP: Refer to the link:https://docs.aws.amazon.com/solutions/latest/landing-zone-accelerator-on-aws/step-3.-update-the-configuration-files.html[Configuration Repository Location] documentation for specific instructions based on your chosen repository method.
+
+==== Validate the Deployed Controls (Optional)
+
+After the LZA pipeline completes, you can test that the controls are in place with the LZA Universal Configuration Controls Test Pack. It is attached to each release as `lza-universal-config-cats-<version>.zip`. Refer to link:../09-Controls-Testing/index.adoc[Controls Testing] for instructions.

@@ -13,6 +13,7 @@ The LZA Universal Configuration provides enterprise-ready configuration template
 5. **[Networking](./docs/05-Networking)** - Network architecture patterns and connectivity
 6. **[Logging & Monitoring](./docs/06-Logging-Monitoring)** - Centralized logging and monitoring setup
 7. **[Operations](./docs/07-Operations)** - Day-to-day operational procedures and management tasks
+8. **[Controls Testing](./docs/09-Controls-Testing)** - Test that the deployed controls are in place, with results mapped to the LZA Compliance Workbook
 
 We recommend reviewing the documentation in order, starting with the Overview and Getting Started sections.
 
@@ -47,6 +48,28 @@ The MCP server ships with UC release artifacts embedded in the container image, 
 separate download is needed. See the
 [Universal Configuration section](https://github.com/awslabs/lza-mcp-server#universal-configuration)
 of the LZA MCP Server documentation for more information.
+
+## CATS - Control Acceptance Testing Suite
+
+[CATS](https://github.com/aws/cats) is an open framework for testing AWS environments. It deploys
+temporary test infrastructure into your accounts, runs tests through a least-privilege test role,
+and writes the results as JSON, JUnit and OSCAL Assessment Results.
+
+### LZA Universal Configuration Controls Test Pack (Optional)
+
+The Controls Test Pack runs on the CATS engine. It tests a deployed Universal Configuration
+environment and reports, control by control, whether the security controls are in place:
+
+- **Control Evidence**: Each result is tied to a control in the LZA Compliance Workbook, and reports
+  can be mapped to the frameworks in the workbook, such as NIST 800-53 Rev5
+- **Configuration and Behavior Checks**: Compares your accounts with your deployed LZA configuration,
+  and attempts actions your SCPs and RCPs should deny to prove that they are denied
+- **Audit-Ready Output**: Writes results as JSON, JUnit and OSCAL Assessment Results
+
+The test pack is attached to each [release](https://github.com/aws/lza-universal-configuration/releases)
+as `lza-universal-config-cats-<version>.zip`; `uv sync` installs the CATS engine (`aws-cats` on PyPI)
+and the other dependencies. See [Controls Testing](./docs/09-Controls-Testing/index.adoc) for what it
+checks, what it deploys in your accounts, and how to run it.
 
 ## What's Included
 

@@ -1,0 +1,161 @@
+# CATS configuration for a Universal Configuration deployed from CodePipeline in the Management
+# account, governed by AWS Organizations alone (controlTower.enable: false in global-config.yaml).
+#
+# deploy_role_name is OrganizationAccountAccessRole: AWSControlTowerExecution does not exist here.
+# Whether Control Tower and IAM Identity Center exist is read from the deployed LZA configuration,
+# so nothing else changes; the tests that need them are recorded not_run.
+#
+# Copy this file to the pack root as cats.yaml and replace every CHANGE_ME with a value from your
+# deployment. It describes the standard AWSAccelerator prefix in us-east-1; if yours differs
+# (home region, prefix, extra accounts, no NAT), change the matching values. README.md here
+# compares the four deployment shapes; ../README.md covers setup and running the tests.
+
+cats_deployment_settings:
+  # No Control Tower, so no AWSControlTowerExecution in the member accounts: the Organizations
+  # default role, which LZA itself uses here (managementAccountAccessRole in global-config.yaml).
+  deploy_role_name: OrganizationAccountAccessRole
+  allow_deploy_to_current_account: true
+  parent_account_id: "CHANGE_ME" # Management account ID (the trust anchor for cross-account roles)
+  aws_region: us-east-1
+  partition: aws
+  cfn_stack_prefix: "cats"
+
+global_network_settings:
+  enabled_network_handlers: [lambda, ec2]
+  tcp_listen_ports: [443]
+
+global_account_settings:
+  # The default test role holds no managed policy; these files name every action the suite
+  # calls. `read` is Describe/Get/List/Search only, and is all the role gets as shipped.
+  # `mutating` is one statement per SCP/RCP control, granting the single action its
+  # enforcement probe attempts (create a NAT gateway, delete a CloudTrail, ...); the probe
+  # expects the guardrail to deny it. To run those probes, uncomment the `CatsMutating` line,
+  # redeploy with `cats infra deploy --all`, and remove the `mutating` entry from
+  # `test_selection.excluded` below.
+  # Paths are relative to cats.yaml in the pack root.
+  default_test_role_inline_policies:
+    CatsRead: policies/default-test-role-read.json
+    # CatsMutating: policies/default-test-role-mutating.json
+  additional_roles:
+    readonly: # Deployed as {cfn_stack_prefix}{account}-readonly
+      managed_policies: [ReadOnlyAccess]
+
+# The accounts the tests may touch. Each entry's key is the account's `name` in your LZA
+# accounts-config.yaml; an entry naming an account that is not there fails the run before any
+# test starts. Keep the six keys below as they are: the tests refer to these accounts by them.
+#
+# Tags say which role an account plays. Exactly one account is tagged `management` and exactly
+# one `perimeter` (the account with the ingress and egress VPCs, the only one allowed an
+# internet or NAT gateway). `infrastructure` and `workload` mark the rest. On a container
+# deployment, the account that runs LZA is tagged `lza-deployment`.
+#
+# account_network_under_test names the VPCs and subnets the network tests probe from, as SSM
+# parameter paths LZA publishes; CATS deploys a small EC2 listener into each.
+accounts_under_test:
+  Audit:
+    account_id: "CHANGE_ME" # 12-digit AWS account ID for your Audit account
+    account_network_under_test: {}
+
+  LogArchive:
+    account_id: "CHANGE_ME" # 12-digit AWS account ID for your LogArchive account
+    account_network_under_test: {}
+
+  Management:
+    account_id: "CHANGE_ME" # 12-digit AWS account ID for your Management account
+    tags:
+      - management
+    account_network_under_test: {}
+
+  Network:
+    account_id: "CHANGE_ME" # 12-digit AWS account ID for your Network account
+    tags:
+      - infrastructure
+    account_network_under_test:
+      endpoints:
+        vpc_id: /accelerator/network/vpc/AWSAccelerator-us-east-1-endpoints/id
+        subnet_ids:
+          - /accelerator/network/vpc/AWSAccelerator-us-east-1-endpoints/subnet/AWSAccelerator-us-east-1-endpoints-a/id
+
+  Perimeter:
+    account_id: "CHANGE_ME" # 12-digit AWS account ID for your Perimeter account
+    tags:
+      - infrastructure
+      - perimeter
+    account_network_under_test:
+      ingresspublic:
+        vpc_id: /accelerator/network/vpc/AWSAccelerator-us-east-1-ingress/id
+        subnet_ids:
+          - /accelerator/network/vpc/AWSAccelerator-us-east-1-ingress/subnet/AWSAccelerator-us-east-1-ingress-public-a/id
+      egresspublic:
+        vpc_id: /accelerator/network/vpc/AWSAccelerator-us-east-1-egress/id
+        subnet_ids:
+          - /accelerator/network/vpc/AWSAccelerator-us-east-1-egress/subnet/AWSAccelerator-us-east-1-egress-public-a/id
+
+  SharedServices:
+    account_id: "CHANGE_ME" # 12-digit AWS account ID for your SharedServices account
+    tags:
+      - infrastructure
+      - route: private
+    account_network_under_test:
+      web:
+        vpc_id: /accelerator/network/vpc/AWSAccelerator-us-east-1-sharedservices/id
+        subnet_ids:
+          - /accelerator/network/vpc/AWSAccelerator-us-east-1-sharedservices/subnet/AWSAccelerator-us-east-1-sharedservices-web-a/id
+      app:
+        vpc_id: /accelerator/network/vpc/AWSAccelerator-us-east-1-sharedservices/id
+        subnet_ids:
+          - /accelerator/network/vpc/AWSAccelerator-us-east-1-sharedservices/subnet/AWSAccelerator-us-east-1-sharedservices-app-a/id
+      data:
+        vpc_id: /accelerator/network/vpc/AWSAccelerator-us-east-1-sharedservices/id
+        subnet_ids:
+          - /accelerator/network/vpc/AWSAccelerator-us-east-1-sharedservices/subnet/AWSAccelerator-us-east-1-sharedservices-data-a/id
+
+  # Workload accounts. The Universal Configuration creates none, so none are listed here and
+  # the tests that need one are recorded not_run. When you add workload accounts to
+  # accounts-config.yaml, add an entry for each, tagged `workload`. The example below is for
+  # an account named Dev00001 with the VPC a Universal Configuration dev template gives it.
+  #
+  # Dev00001:
+  #   account_id: "CHANGE_ME"
+  #   tags:
+  #     - workload
+  #   account_network_under_test:
+  #     app:
+  #       vpc_id: /accelerator/network/vpc/AWSAccelerator-us-east-1-dev/id
+  #       subnet_ids:
+  #         - /accelerator/network/vpc/AWSAccelerator-us-east-1-dev/subnet/AWSAccelerator-us-east-1-dev-app-a/id
+  #     data:
+  #       vpc_id: /accelerator/network/vpc/AWSAccelerator-us-east-1-dev/id
+  #       subnet_ids:
+  #         - /accelerator/network/vpc/AWSAccelerator-us-east-1-dev/subnet/AWSAccelerator-us-east-1-dev-data-a/id
+  #
+  # If an account's name in accounts-config.yaml is not usable as a key here (keys are letters,
+  # digits and underscores), choose any key and set `account_name: <the LZA name>` on the entry.
+
+reporting:
+  enabled: true
+  report_formats:
+    - cats_json
+    - oscal_ar
+    - junit
+  custom_markers:
+    - test_suite
+    - test_id
+    - mutating
+    - evidence
+
+# Which tests run here; every held-back test is recorded in the reports as not_run with its
+# reason. See README "Choosing which tests apply".
+test_selection:
+  # Deployment variants this environment satisfies. standard-deployment (CodePipeline) is
+  # provided automatically; list container-deployment for an ECS-based LZA deployment account.
+  provides: []
+  # Controls or marker values that do not apply here, each with a reason. Every held-back
+  # test is in the reports as not_run with that reason. Another example:
+  #   - {marker: standard_name, values: [LZA-G-SCP-34], reason: "RDS not in use"}
+  excluded:
+    # As shipped, the tests only read. The SCP/RCP enforcement probes attempt the action each
+    # guardrail should deny; see `CatsMutating` under global_account_settings to enable them.
+    - marker: mutating
+      values: [true]
+      reason: "Read-only run: the test role has no mutating permissions (see CatsMutating in cats.yaml)"

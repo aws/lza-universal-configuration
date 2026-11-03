@@ -1,0 +1,9 @@
+name: "{{ AcceleratorPrefix }}-{{ Region2 }}-ipam-regional-pool"
+locale: "{{ Region2 }}"
+description: IP regional pool allocation for LZA
+provisionedCidrs:
+  - "{{ Region2RegionalCidr }}"
+sourceIpamPool: "{{ AcceleratorPrefix }}-{{ HomeRegion }}-ipam-global-pool"
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"

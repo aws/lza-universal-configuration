@@ -1,0 +1,992 @@
+##############################################################################################################
+# For detailed information about Included Services, Features, and Configuration References,                  #
+# please review the SecurityConfig class reference in our TypeDoc:                                           #
+# https://awslabs.github.io/landing-zone-accelerator-on-aws/latest/user-guide/config/#security-configuration #
+##############################################################################################################
+
+# Central Security Services Configurations
+centralSecurityServices:
+  delegatedAdminAccount: Audit # Enables security services management through delegated Audit account
+  # Amazon Elastic Block Store Encryption
+  ebsDefaultVolumeEncryption:
+    enable: true # Enables default encryption for EBS volumes using customer managed KMS keys
+    excludeRegions: []
+  # Amazon Simple Storage Service Public Access
+  s3PublicAccessBlock:
+    enable: true # Enables public access block to S3 buckets
+    excludeAccounts: []
+  # Service Control Policies (SCPs) Manual Changes
+  scpRevertChangesConfig:
+    enable: true # Enables SCPs integrity by reverting manual unauthorized changes
+  snsSubscriptions: []
+  # Amazon Macie Configurations
+  macie:
+    enable: true # Enables Macie to all accounts in the organization
+    excludeRegions: [] # List of AWS Region names to be excluded from configuring Macie
+    policyFindingsPublishingFrequency: FIFTEEN_MINUTES # Publish updated policy findings
+    publishSensitiveDataFindings: false # Enables publishing of sensitive data findings to Security Hub
+    publishPolicyFindings: true # Enables publishing of policy findings to Security Hub
+  # AWS GuardDuty Configurations
+  guardduty:
+    enable: true # Enables GuardDuty to all accounts in the organization
+    excludeRegions: [] # List of AWS Region names to be excluded from configuring GuardDuty
+    s3Protection:
+      enable: true # Enables S3 bucket monitoring
+      excludeRegions: []
+    eksProtection:
+      enable: true # Enables EKS cluster monitoring
+    exportConfiguration:
+      enable: true # Enables findings export
+      destinationType: S3 # Exports findings to S3
+      exportFrequency: SIX_HOURS # Exports findings every 6 HOURS
+  # AWS Security Hub Configurations
+  securityHub:
+    enable: true # Enables Security Hub to all accounts in the organization
+    regionAggregation: true # Enables multi-region aggregation
+    excludeRegions: [] # List of AWS Region names to be excluded from configuring Security Hub
+    standards:
+      #####################################################################################
+      # Enable AWS Security Hub standards based upon a customer specific requirements     #
+      # Controls that you might want to disable based upon Security Hub recommendation    #
+      # https://docs.aws.amazon.com/securityhub/latest/userguide/controls-to-disable.html #
+      #####################################################################################
+      - name: AWS Foundational Security Best Practices v1.0.0
+        # AWS Foundational Security Best Practices (FSBP)
+        #   - https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-standards-fsbp-controls.html
+        enable: true
+        deploymentTargets:
+          organizationalUnits:
+            - Root
+      - name: NIST Special Publication 800-53 Revision 5
+        # National Institute of Standards and Technology (NIST) SP 800-53 Rev. 5
+        #   - https://docs.aws.amazon.com/securityhub/latest/userguide/nist-standard.html
+        enable: true
+        deploymentTargets:
+          organizationalUnits:
+            - Root
+      - name: CIS AWS Foundations Benchmark v3.0.0
+        # Center for Internet Security (CIS) AWS Foundations Benchmark v3.0.0
+        #   - https://docs.aws.amazon.com/securityhub/latest/userguide/cis-aws-foundations-benchmark.html
+        enable: true
+        deploymentTargets:
+          organizationalUnits:
+            - Root
+      - name: CIS AWS Foundations Benchmark v1.2.0
+        # Center for Internet Security (CIS) AWS Foundations Benchmark v1.2.0
+        #   - https://docs.aws.amazon.com/securityhub/latest/userguide/cis-aws-foundations-benchmark.html
+        enable: false
+        deploymentTargets:
+          organizationalUnits:
+            - Root
+    automationRules:
+      # The following Security Hub findings are suppressed for LZA-managed resources.
+      # Refer to the LZA Universal Configuration Security Hub documentation for detailed guidance and reasons for suppression.
+      # Amazon CloudWatch
+      - name: "{{ AcceleratorPrefix }}-CloudWatch-AlarmAction-Suppress"
+        description: "Suppress CloudWatch.15 alarm action findings for LZA managed alarms"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "CloudWatch alarm action findings suppressed for LZA managed alarms"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsCloudWatchAlarm"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "CloudWatch.15"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "{{ AcceleratorPrefix }}FailedAlarm"
+                comparison: "CONTAINS"
+      # Amazon DynamoDB
+      - name: "{{ AcceleratorPrefix }}-DynamoDB-BackupPlan-Suppress"
+        description: "Suppress DynamoDB.4 backup plan findings for LZA managed tables"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "DynamoDB backup plan findings suppressed for LZA managed tables"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsDynamoDbTable"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "DynamoDB.4"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "{{ AcceleratorPrefix }}-PrepareStack"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-DynamoDB-DeletionProtection-Suppress"
+        description: "Suppress DynamoDB.6 deletion protection findings for LZA managed tables"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "DynamoDB deletion protection findings suppressed for LZA managed tables"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsDynamoDbTable"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "DynamoDB.6"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "{{ AcceleratorPrefix }}-PrepareStack"
+                comparison: "CONTAINS"
+      # Amazon EC2
+      - name: "{{ AcceleratorPrefix }}-EC2-VPCEndpoints-Suppress"
+        description: "Suppress EC2.10 VPC endpoints findings for EC2 service"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "EC2 VPC endpoints findings suppressed - VPC endpoints configured for EC2 service"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsEc2Vpc"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "EC2.10"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Name"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-EC2-TransitGatewayAutoAccept-Suppress"
+        description: "Suppress EC2.23 Transit Gateway auto-accept VPC attachment findings"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "EC2 Transit Gateway auto-accept findings suppressed for LZA managed Transit Gateways"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsEc2TransitGateway"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "EC2.23"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Name"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-EC2-DockerRegistryEndpoint-Suppress"
+        description: "Suppress EC2.56 Docker Registry VPC endpoint findings"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "EC2 Docker Registry VPC endpoint findings suppressed for LZA managed VPCs"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsEc2Vpc"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "EC2.56"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Name"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-EC2-SystemsManagerEndpoint-Suppress"
+        description: "Suppress EC2.57 Systems Manager VPC endpoint findings"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "EC2 Systems Manager VPC endpoint findings suppressed for LZA managed VPCs"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsEc2Vpc"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "EC2.57"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Name"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-EC2-IncidentManagerContactsEndpoint-Suppress"
+        description: "Suppress EC2.58 Systems Manager Incident Manager Contacts VPC endpoint findings"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "EC2 Systems Manager Incident Manager Contacts VPC endpoint findings suppressed for LZA managed VPCs"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsEc2Vpc"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "EC2.58"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Name"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-EC2-IncidentManagerEndpoint-Suppress"
+        description: "Suppress EC2.60 Systems Manager Incident Manager VPC endpoint findings"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "EC2 Systems Manager Incident Manager VPC endpoint findings suppressed for LZA managed VPCs"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsEc2Vpc"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "EC2.60"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Name"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-EC2-VPCBlockPublicAccess-Suppress"
+        description: "Suppress EC2.172 VPC Block Public Access internet gateway findings"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "EC2 VPC Block Public Access internet gateway findings suppressed for LZA managed VPCs"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsEc2Vpc"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "EC2.172"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Name"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      # Amazon Kinesis
+      - name: "{{ AcceleratorPrefix }}-Kinesis-DataRetention-Suppress"
+        description: "Suppress Kinesis.3 data retention period findings for LZA managed Kinesis streams"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "Kinesis data retention period findings suppressed for LZA managed Kinesis streams"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsKinesisStream"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "Kinesis.3"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "{{ AcceleratorPrefix }}-LoggingStack"
+                comparison: "CONTAINS"
+      # AWS Key Management Service (AWS KMS)
+      - name: "{{ AcceleratorPrefix }}-KMS-DecryptionPolicy-Suppress"
+        description: "Suppress KMS.1 IAM policy decryption findings for LZA managed policies"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "KMS decryption policy findings suppressed for LZA managed IAM policies"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsIamPolicy"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "KMS.1"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "{{ AcceleratorPrefix }}-SessionManagerLogging"
+                comparison: "CONTAINS"
+
+      - name: "{{ AcceleratorPrefix }}-KMS-InlinePolicyDecryption-Suppress"
+        description: "Suppress KMS.2 IAM inline policy decryption findings for LZA managed principals"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "KMS inline policy decryption findings suppressed for LZA managed IAM principals"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsIamRole"
+                comparison: "EQUALS"
+              - value: "AwsIamUser"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "KMS.2"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "{{ AcceleratorPrefix }}-InstallerS-UpdatePipelineLambda"
+                comparison: "CONTAINS"
+              - value: "{{ AcceleratorPrefix }}-SecurityAu-CustomMacieCreateMemberCu"
+                comparison: "CONTAINS"
+      # AWS Lambda
+      - name: "{{ AcceleratorPrefix }}-Lambda-VPC-Suppress"
+        description: "Suppress Lambda.3 VPC findings for LZA managed Lambda functions"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "Lambda VPC findings suppressed for LZA managed Lambda functions"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsLambdaFunction"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "Lambda.3"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-Lambda-XRay-Suppress"
+        description: "Suppress Lambda.7 X-Ray active tracing findings for LZA managed Lambda functions"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "Lambda X-Ray active tracing findings suppressed for LZA managed Lambda functions"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsLambdaFunction"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "Lambda.7"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "{{ AcceleratorPrefix }}"
+                comparison: "CONTAINS"
+      # Amazon S3
+      - name: "{{ AcceleratorPrefix }}-S3-BucketPolicy-Suppress"
+        description: "Suppress S3.6 bucket policy findings for LZA managed buckets"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "S3 bucket policy findings suppressed for LZA managed buckets"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsS3Bucket"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "S3.6"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "cdk-accel-assets"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-S3-CrossRegionReplication-Suppress"
+        description: "Suppress S3.7 cross-region replication findings for LZA managed buckets"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "S3 cross-region replication findings suppressed for LZA managed buckets"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsS3Bucket"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "S3.7"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "aws-accelerator"
+                comparison: "CONTAINS"
+              - value: "cdk-accel-assets"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-S3-ServerLogging-Suppress"
+        description: "Suppress S3.9 server access logging findings for LZA managed buckets"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "Server access logging findings suppressed for LZA managed buckets"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsS3Bucket"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "S3.9"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "aws-accelerator-elb-access-logs"
+                comparison: "CONTAINS"
+              - value: "aws-accelerator-s3-access-logs"
+                comparison: "CONTAINS"
+              - value: "cdk-accel-assets"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-S3-EventNotifications-Suppress"
+        description: "Suppress S3.11 event notifications findings for LZA managed buckets"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "S3 event notifications findings suppressed for LZA managed buckets"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsS3Bucket"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "S3.11"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "aws-accelerator"
+                comparison: "CONTAINS"
+              - value: "cdk-accel-assets"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-S3-ObjectLock-Suppress"
+        description: "Suppress S3.15 object lock findings for LZA managed buckets"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "S3 object lock findings suppressed for LZA managed buckets"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsS3Bucket"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "S3.15"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "aws-accelerator"
+                comparison: "CONTAINS"
+              - value: "cdk-accel-assets"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-S3-KMSEncryption-Suppress"
+        description: "Suppress S3.17 KMS encryption findings for LZA managed buckets"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "S3 KMS encryption findings suppressed for LZA managed buckets"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsS3Bucket"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "S3.17"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "aws-accelerator-elb-access-logs"
+                comparison: "CONTAINS"
+              - value: "aws-accelerator-s3-access-logs"
+                comparison: "CONTAINS"
+      - name: "{{ AcceleratorPrefix }}-S3-MFADelete-Suppress"
+        description: "Suppress S3.20 MFA delete findings for LZA managed buckets"
+        enabled: true
+        actions:
+          - type: "FINDING_FIELDS_UPDATE"
+            findingFieldsUpdate:
+              workflowStatus: "SUPPRESSED"
+              note:
+                text: "S3 MFA delete findings suppressed for LZA managed buckets"
+                updatedBy: "{{ AcceleratorPrefix }}-SecurityAutomation"
+        criteria:
+          - key: "ResourceType"
+            filter:
+              - value: "AwsS3Bucket"
+                comparison: "EQUALS"
+          - key: "ComplianceSecurityControlId"
+            filter:
+              - value: "S3.20"
+                comparison: "EQUALS"
+          - key: "ResourceTags"
+            filter:
+              - key: "Accelerator"
+                value: "{{ AcceleratorPrefix }}"
+                comparison: "EQUALS"
+          - key: "ResourceId"
+            filter:
+              - value: "aws-accelerator"
+                comparison: "CONTAINS"
+  # AWS Systems Manager Settings
+  ssmSettings:
+    blockPublicDocumentSharing:
+      enable: true
+      excludeAccounts: []
+  ssmAutomation:
+    documentSets:
+      - shareTargets:
+          organizationalUnits:
+            - Root
+        documents:
+          # Calls the AWS CLI to enable access logs on a specified ELB
+          - name: "{{ AcceleratorPrefix }}-SSM-ELB-Enable-Logging"
+            template: ssm-documents/enable-elb-logging.yaml
+          # Attaches instance profiles to an EC2 instance
+          - name: "{{ AcceleratorPrefix }}-Attach-IAM-Instance-Profile"
+            template: ssm-documents/attach-iam-instance-profile.yaml
+
+# AWS IAM Access Analyzer Configurations
+accessAnalyzer:
+  enable: true # Enables IAM Access Analyzer in the organization
+# AWS IAM Password Policy Requirements
+iamPasswordPolicy:
+  allowUsersToChangePassword: true # Enables users to update their own passwords
+  hardExpiry: false # Allows grace period at password expiration
+  requireUppercaseCharacters: true # Must include uppercase letters (A-Z)
+  requireLowercaseCharacters: true # Must include lowercase letters (a-z)
+  requireSymbols: true # Must include special characters (!@#$%^&*)
+  requireNumbers: true # Must include numbers (0-9)
+  minimumPasswordLength: 14 # Mandatory character minimum length
+  passwordReusePrevention: 24 # Prevents reuse of last passwords
+  maxPasswordAge: 90 # Mandates password change days
+
+cloudWatch:
+  metricSets: []
+  alarmSets: []
+
+# AWS Config Configurations
+# In AWS Control Tower based environment:
+# - LZA enables AWS Config configuration recorder and delivery channel in the management account
+# - Control Tower enables AWS Config across all enrolled accounts
+awsConfig:
+  enableConfigurationRecorder: true # Enables configuration recorder
+  enableDeliveryChannel: true # Enables configuration change delivery
+  useServiceLinkedRole: true # Enables use of Config service linked role
+  ruleSets:
+    # All account deployments
+    - deploymentTargets:
+        organizationalUnits:
+          - Root
+      rules:
+        #############################################################################
+        # Enabling additional config rules not implemented through AWS Security Hub #
+        #############################################################################
+        - name: "{{ AcceleratorPrefix }}-iam-user-group-membership-check"
+          complianceResourceTypes:
+            - AWS::IAM::User
+          identifier: IAM_USER_GROUP_MEMBERSHIP_CHECK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-cloudtrail-enabled"
+          identifier: CLOUD_TRAIL_ENABLED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-emr-kerberos-enabled"
+          identifier: EMR_KERBEROS_ENABLED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-s3-bucket-policy-grantee-check"
+          complianceResourceTypes:
+            - AWS::S3::Bucket
+          identifier: S3_BUCKET_POLICY_GRANTEE_CHECK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-ec2-instance-detailed-monitoring-enabled"
+          complianceResourceTypes:
+            - AWS::EC2::Instance
+          identifier: EC2_INSTANCE_DETAILED_MONITORING_ENABLED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-ec2-volume-inuse-check"
+          inputParameters:
+            deleteOnTermination: "TRUE"
+          complianceResourceTypes:
+            - AWS::EC2::Volume
+          identifier: EC2_VOLUME_INUSE_CHECK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-guardduty-non-archived-findings"
+          inputParameters:
+            daysHighSev: "1"
+            daysLowSev: "30"
+            daysMediumSev: "7"
+          identifier: GUARDDUTY_NON_ARCHIVED_FINDINGS
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-sagemaker-endpoint-configuration-kms-key-configured"
+          identifier: SAGEMAKER_ENDPOINT_CONFIGURATION_KMS_KEY_CONFIGURED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-dynamodb-table-encrypted-kms"
+          complianceResourceTypes:
+            - AWS::DynamoDB::Table
+          identifier: DYNAMODB_TABLE_ENCRYPTED_KMS
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        # NIST 800-53-rev5 Conformance Pack - Additional 15
+        - name: "{{ AcceleratorPrefix }}-account-part-of-organizations"
+          identifier: ACCOUNT_PART_OF_ORGANIZATIONS
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-codebuild-project-artifact-encryption"
+          complianceResourceTypes:
+            - AWS::CodeBuild::Project
+          identifier: CODEBUILD_PROJECT_ARTIFACT_ENCRYPTION
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-dynamodb-throughput-limit-check"
+          identifier: DYNAMODB_THROUGHPUT_LIMIT_CHECK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-ebs-optimized-instance"
+          complianceResourceTypes:
+            - AWS::EC2::Instance
+          identifier: EBS_OPTIMIZED_INSTANCE
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-lambda-dlq-check"
+          complianceResourceTypes:
+            - AWS::Lambda::Function
+          identifier: LAMBDA_DLQ_CHECK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-secretsmanager-using-cmk"
+          complianceResourceTypes:
+            - AWS::SecretsManager::Secret
+          identifier: SECRETSMANAGER_USING_CMK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-api-gw-cache-enabled-and-encrypted"
+          complianceResourceTypes:
+            - AWS::ApiGateway::Stage
+          identifier: API_GW_CACHE_ENABLED_AND_ENCRYPTED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-cloudtrail-security-trail-enabled"
+          identifier: CLOUDTRAIL_SECURITY_TRAIL_ENABLED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-ebs-in-backup-plan"
+          identifier: EBS_IN_BACKUP_PLAN
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-ec2-instances-in-vpc"
+          complianceResourceTypes:
+            - AWS::EC2::Instance
+          identifier: INSTANCES_IN_VPC
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-rds-in-backup-plan"
+          identifier: RDS_IN_BACKUP_PLAN
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-aurora-resources-protected-by-backup-plan"
+          complianceResourceTypes:
+            - AWS::RDS::DBCluster
+          identifier: AURORA_RESOURCES_PROTECTED_BY_BACKUP_PLAN
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-backup-recovery-point-encrypted"
+          complianceResourceTypes:
+            - AWS::Backup::RecoveryPoint
+          identifier: BACKUP_RECOVERY_POINT_ENCRYPTED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        # Rules with automated remediation
+        - name: "{{ AcceleratorPrefix }}-ec2-instance-profile-attached"
+          complianceResourceTypes:
+            - AWS::EC2::Instance
+          identifier: EC2_INSTANCE_PROFILE_ATTACHED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          remediation:
+            rolePolicyFile: ssm-remediation-roles/attach-ec2-instance-profile-remediation-role.json
+            automatic: true
+            targetId: "{{ AcceleratorPrefix }}-Attach-IAM-Instance-Profile"
+            retryAttemptSeconds: 60
+            maximumAutomaticAttempts: 5
+            parameters:
+              - name: InstanceId
+                value: RESOURCE_ID
+                type: String
+              - name: IamInstanceProfile
+                value: ${ACCEL_LOOKUP::InstanceProfile:EC2-Default-SSM-Role}
+                type: StringList
+        - name: "{{ AcceleratorPrefix }}-elb-logging-enabled"
+          identifier: ELB_LOGGING_ENABLED
+          complianceResourceTypes:
+            - AWS::ElasticLoadBalancing::LoadBalancer
+            - AWS::ElasticLoadBalancingV2::LoadBalancer
+          inputParameters:
+            s3BucketNames: ${ACCEL_LOOKUP::Bucket:elbLogs}
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+          remediation:
+            rolePolicyFile: ssm-remediation-roles/elb-logging-enabled-remediation-role.json
+            automatic: true
+            targetId: "{{ AcceleratorPrefix }}-SSM-ELB-Enable-Logging"
+            retryAttemptSeconds: 60
+            maximumAutomaticAttempts: 5
+            parameters:
+              - name: LoadBalancerArn
+                value: RESOURCE_ID
+                type: String
+              - name: LogDestination
+                value: ${ACCEL_LOOKUP::Bucket:elbLogs}
+                type: StringList
+    # Management account deployment, Control Tower cannot deploy these rules in the Management account so we need to do it manually.
+    - deploymentTargets:
+        accounts:
+          - Management
+      rules:
+        - name: "{{ AcceleratorPrefix }}-securityhub-enabled"
+          identifier: SECURITYHUB_ENABLED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-cloudtrail-s3-dataevents-enabled"
+          identifier: CLOUDTRAIL_S3_DATAEVENTS_ENABLED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-iam-group-has-users-check"
+          complianceResourceTypes:
+            - AWS::IAM::Group
+          identifier: IAM_GROUP_HAS_USERS_CHECK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-internet-gateway-authorized-vpc-only"
+          complianceResourceTypes:
+            - AWS::EC2::InternetGateway
+          identifier: INTERNET_GATEWAY_AUTHORIZED_VPC_ONLY
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-iam-no-inline-policy-check"
+          complianceResourceTypes:
+            - AWS::IAM::User
+            - AWS::IAM::Role
+            - AWS::IAM::Group
+          identifier: IAM_NO_INLINE_POLICY_CHECK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-cloudwatch-log-group-encrypted"
+          identifier: CLOUDWATCH_LOG_GROUP_ENCRYPTED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-sagemaker-notebook-instance-kms-key-configured"
+          identifier: SAGEMAKER_NOTEBOOK_INSTANCE_KMS_KEY_CONFIGURED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-no-unrestricted-route-to-igw"
+          complianceResourceTypes:
+            - AWS::EC2::RouteTable
+          identifier: NO_UNRESTRICTED_ROUTE_TO_IGW
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-backup-plan-min-frequency-and-min-retention-check"
+          complianceResourceTypes:
+            - AWS::Backup::BackupPlan
+          identifier: BACKUP_PLAN_MIN_FREQUENCY_AND_MIN_RETENTION_CHECK
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-backup-recovery-point-manual-deletion-disabled"
+          complianceResourceTypes:
+            - AWS::Backup::BackupVault
+          identifier: BACKUP_RECOVERY_POINT_MANUAL_DELETION_DISABLED
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"
+        - name: "{{ AcceleratorPrefix }}-ec2-resources-protected-by-backup-plan"
+          complianceResourceTypes:
+            - AWS::EC2::Instance
+          identifier: EC2_RESOURCES_PROTECTED_BY_BACKUP_PLAN
+          tags:
+            - key: Accelerator
+              value: "{{ AcceleratorPrefix }}"

@@ -5,3 +5,9 @@ SECURITY.md:6
 
 # Confidentiality tag suggestions (tag value examples, not actual classification)
 docs/03-Management-Governance/index.adoc:357
+
+# cats/: `@pytest.mark.xfail` decorator read as an email address
+cats/README.md:193
+
+# cats/: the team alias in pyproject.toml [project].authors
+cats/pyproject.toml:9

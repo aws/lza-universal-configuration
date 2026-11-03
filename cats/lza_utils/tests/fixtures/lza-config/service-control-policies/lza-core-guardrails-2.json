@@ -1,0 +1,211 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GRIAMR",
+      "Effect": "Deny",
+      "NotAction": [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListRoles"
+      ],
+      "Resource": [
+        "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+        "arn:${PARTITION}:iam::*:role/cdk-accel*",
+        "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}"
+      ],
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/AWSServiceRoleForConfig"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRIAMRT",
+      "Effect": "Deny",
+      "Action": [
+        "iam:AttachRolePolicy",
+        "iam:DeleteRole",
+        "iam:DeleteRolePolicy",
+        "iam:DetachRolePolicy",
+        "iam:PutRolePolicy",
+        "iam:TagRole",
+        "iam:UntagRole",
+        "iam:UpdateAssumeRolePolicy",
+        "iam:UpdateRole"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "iam:ResourceTag/Accelerator": "${ACCELERATOR_PREFIX}"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRCFM",
+      "Effect": "Deny",
+      "Action": [
+        "cloudformation:Delete*"
+      ],
+      "Resource": "arn:${PARTITION}:cloudformation:*:*:stack/${ACCELERATOR_PREFIX}*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRSSM",
+      "Effect": "Deny",
+      "Action": [
+        "ssm:DeleteParameter*",
+        "ssm:PutParameter"
+      ],
+      "Resource": "arn:${PARTITION}:ssm:*:*:parameter${ACCELERATOR_SSM_PREFIX}*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRS3",
+      "Effect": "Deny",
+      "Action": [
+        "s3:Delete*",
+        "s3:PutBucketLogging",
+        "s3:PutBucketPolicy",
+        "s3:PutBucketVersioning",
+        "s3:PutEncryptionConfiguration",
+        "s3:PutLifecycleConfiguration",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutReplicationConfiguration",
+        "s3:ReplicateDelete"
+      ],
+      "Resource": [
+        "arn:${PARTITION}:s3:::aws-accelerator*",
+        "arn:${PARTITION}:s3:::cdk-accel*"
+      ],
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRRU",
+      "Effect": "Deny",
+      "Action": "*",
+      "Resource": "*",
+      "Condition": {
+        "ArnLike": {
+          "aws:PrincipalArn": [
+            "arn:${PARTITION}:iam::*:root"
+          ]
+        },
+        "Null": {
+          "aws:AssumedRoot": "true"
+        }
+      }
+    },
+    {
+      "Sid": "GRSEC",
+      "Effect": "Deny",
+      "Action": [
+        "access-analyzer:DeleteAnalyzer",
+        "account:DisableRegion",
+        "account:EnableRegion",
+        "ec2:CreateDefaultVpc",
+        "ec2:DisableEbsEncryptionByDefault",
+        "ec2:ModifyEbsDefaultKmsKeyId",
+        "guardduty:AcceptInvitation",
+        "guardduty:CreateMembers",
+        "guardduty:DeclineInvitations",
+        "guardduty:Delete*",
+        "guardduty:Disassociate*",
+        "guardduty:DisableOrganizationAdminAccount",
+        "guardduty:InviteMembers",
+        "guardduty:StopMonitoringMembers",
+        "guardduty:UpdateDetector",
+        "guardduty:UpdateFindingsFeedback",
+        "guardduty:UpdateOrganizationConfiguration",
+        "guardduty:UpdatePublishingDestination",
+        "iam:CreateAccountAlias",
+        "iam:CreateUser",
+        "iam:DeleteAccount*",
+        "iam:UpdateAccountPasswordPolicy",
+        "macie2:AcceptInvitation",
+        "macie2:CreateInvitations",
+        "macie2:CreateMember",
+        "macie2:DeclineInvitations",
+        "macie2:DeleteInvitations",
+        "macie2:DeleteMember",
+        "macie2:DisableMacie",
+        "macie2:DisableOrganizationAdminAccount",
+        "macie2:Disassociate*",
+        "macie2:Enable*",
+        "macie2:UpdateMacieSession",
+        "macie2:UpdateMemberSession",
+        "macie2:UpdateOrganizationConfiguration",
+        "organizations:LeaveOrganization*",
+        "ram:AssociateResourceShare",
+        "ram:CreateResourceShare",
+        "ram:Delete*",
+        "ram:Disassociate*",
+        "ram:UntagResource",
+        "ram:UpdateResourceShare",
+        "s3:PutAccountPublicAccessBlock",
+        "securityhub:AcceptInvitation",
+        "securityhub:BatchDisableStandards",
+        "securityhub:CreateMembers",
+        "securityhub:DeclineInvitations",
+        "securityhub:DeleteActionTarget",
+        "securityhub:DeleteInsight",
+        "securityhub:DeleteInvitations",
+        "securityhub:DeleteMembers",
+        "securityhub:Disassociate*",
+        "securityhub:Disable*",
+        "securityhub:InviteMembers",
+        "securityhub:UpdateSecurityHubConfiguration",
+        "securityhub:UpdateStandardsControl"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    }
+  ]
+}

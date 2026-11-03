@@ -1,0 +1,21 @@
+# Python
+.venv/
+# The pack ships no lock: pyproject.toml pins the engine to a minor and uv sync writes this locally
+uv.lock
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+
+# Written by `cats validate`
+.schema.json
+# The cats:lint job's CHANGE_ME-substituted copies of cats.yaml and the examples
+ci-*.yaml
+
+# Run outputs (report.json, OSCAL, JUnit) are evidence for the operator, not for the repo
+report.json
+assessment-results.json
+junit.xml
+coverage-report.txt

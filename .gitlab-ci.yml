@@ -44,6 +44,50 @@ validate:
   rules:
     - when: always
 
+# Lint and unit-test the CATS controls test pack (cats/) whenever it changes. The live
+# control tests need deployed CATS infrastructure and run in the pack's source repository;
+# this job proves the exported tree stands on its own: it installs from its engine
+# pin, passes ruff and mypy --strict, its utilities' unit tests pass against the shipped
+# cats.yaml, and every control in the compliance workbook has a test.
+cats:lint:
+  stage: validate
+  image: public.ecr.aws/docker/library/python:3.14
+  variables:
+    # mypy --strict over the pack with boto3-stubs[all] loaded was OOM-killed at the runner
+    # default; the pack's own CI runs the same check at 8Gi.
+    KUBERNETES_CPU_REQUEST: "4"
+    KUBERNETES_CPU_LIMIT: "4"
+    KUBERNETES_MEMORY_REQUEST: "8Gi"
+    KUBERNETES_MEMORY_LIMIT: "8Gi"
+  before_script:
+    - pip install -q uv
+    - cd cats
+    # The pack ships no uv.lock: pyproject.toml pins the engine to a minor (aws-cats~=1.0.0),
+    # and uv sync resolves the same way a customer's does, so a pin that does not resolve
+    # fails here. --group dev adds ruff, mypy and the stubs; a customer's plain uv sync does not.
+    - uv sync --group dev
+  script:
+    - uv run ruff check .
+    - uv run ruff format --check .
+    - uv run mypy .
+    # The pack ships one cats.yaml per deployment shape in examples/, each with CHANGE_ME account
+    # IDs; a customer copies one to the pack root. Doing the same with a documentation placeholder
+    # validates every example where it will run, so one that no longer matches the pack fails here.
+    - for example in examples/*.yaml; do sed 's/"CHANGE_ME"/"111111111111"/g' "$example" > ci-cats.yaml; uv run cats validate -c ci-cats.yaml -o .; done
+    # The CATS plugin loads a config at pytest configure time; the unit tests use the default shape.
+    - sed 's/"CHANGE_ME"/"111111111111"/g' examples/control-tower-standard.yaml > ci-cats.yaml
+    - CATS_CONFIG=ci-cats.yaml uv run pytest -q cats_utils/tests lza_utils/tests
+    - uv run python -m lza_utils.coverage_checker
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - cats/**/*
+        - .gitlab-ci.yml
+    - if: $CI_COMMIT_BRANCH == "dev"
+      changes:
+        - cats/**/*
+        - .gitlab-ci.yml
+
 release:
   image: registry.gitlab.com/gitlab-org/release-cli:latest
   stage: release
@@ -52,8 +96,11 @@ release:
     DEFAULT_SHARED_VPC: lza-universal-config-shared-vpc-${CI_COMMIT_TAG}.zip
     DEFAULT_AWS_GOVCLOUD_US: lza-universal-config-for-aws-govcloud-us-${CI_COMMIT_TAG}.zip
     DEFAULT_AWS_EUSC: lza-universal-config-for-aws-european-sovereign-cloud-${CI_COMMIT_TAG}.zip
+    DEFAULT_CATS: lza-universal-config-cats-${CI_COMMIT_TAG}.zip
   before_script:
-    - apk add --no-cache nodejs npm zip
+    # git: release-cats-package.js lists the pack with `git ls-files`. The image happens to carry
+    # git as a dependency of glab; name it so a change there cannot break the release.
+    - apk add --no-cache nodejs npm zip git
   script:
     - cd scripts
     - npm install
@@ -61,12 +108,15 @@ release:
     - node release-package.js -n shared-vpc -v $CI_COMMIT_TAG -o ../$DEFAULT_SHARED_VPC -r ../replacements/replacements-for-aws-standard.yaml --upload
     - node release-package.js -n hub-and-spoke -v $CI_COMMIT_TAG -o ../$DEFAULT_AWS_GOVCLOUD_US -r ../replacements/replacements-for-aws-govcloud-us.yaml --upload
     - node release-package.js -n hub-and-spoke -v $CI_COMMIT_TAG -o ../$DEFAULT_AWS_EUSC -r ../replacements/replacements-for-aws-european-sovereign-cloud.yaml --upload
+    # The CATS controls test pack is one package for every partition and network type.
+    - node release-cats-package.js -v $CI_COMMIT_TAG -o ../$DEFAULT_CATS --upload
   artifacts:
     paths:
-      - ${DEFAULT_HUB_SPOKE}.zip
-      - ${DEFAULT_SHARED_VPC}.zip
-      - ${DEFAULT_AWS_GOVCLOUD_US}.zip
-      - ${DEFAULT_AWS_EUSC}.zip
+      - ${DEFAULT_HUB_SPOKE}
+      - ${DEFAULT_SHARED_VPC}
+      - ${DEFAULT_AWS_GOVCLOUD_US}
+      - ${DEFAULT_AWS_EUSC}
+      - ${DEFAULT_CATS}
   rules:
     - if: $CI_COMMIT_TAG =~ /v(\d.+){2}\d/
       when: always
@@ -85,6 +135,36 @@ release:
           url: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/lza-universal-config/${CI_COMMIT_TAG}/${DEFAULT_AWS_GOVCLOUD_US}
         - name: $DEFAULT_AWS_EUSC
           url: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/lza-universal-config/${CI_COMMIT_TAG}/${DEFAULT_AWS_EUSC}
+        - name: $DEFAULT_CATS
+          url: ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/lza-universal-config/${CI_COMMIT_TAG}/${DEFAULT_CATS}
+
+# The release scripts otherwise run for the first time on a real tag. This job runs their
+# unit tests and builds every release package without uploading, so a broken script or an
+# incomplete CATS pack fails a merge request instead of a release.
+scripts:test:
+  stage: validate
+  before_script:
+    - !reference [.al2023_tools, before_script]
+    - dnf install -q -y git
+  script:
+    - cd scripts
+    - npm install
+    - npm test
+    - node release-package.js -n hub-and-spoke -v mr -o ../mr-hub-and-spoke.zip -r ../replacements/replacements-for-aws-standard.yaml
+    - node release-package.js -n shared-vpc -v mr -o ../mr-shared-vpc.zip -r ../replacements/replacements-for-aws-standard.yaml
+    - node release-cats-package.js -v mr -o ../mr-cats.zip
+    - unzip -l ../mr-cats.zip | tail -1
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      changes:
+        - scripts/**/*
+        - cats/**/*
+        - .gitlab-ci.yml
+    - if: $CI_COMMIT_BRANCH == "dev"
+      changes:
+        - scripts/**/*
+        - cats/**/*
+        - .gitlab-ci.yml
 
 # ===========================================================================
 # DEPLOY TEMPLATE

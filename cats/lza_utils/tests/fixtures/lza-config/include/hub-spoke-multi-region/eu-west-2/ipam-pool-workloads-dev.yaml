@@ -1,0 +1,12 @@
+name: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-workloads-dev-pool"
+description: IP regional pool allocation for Dev LZA accounts
+locale: "{{ Region4 }}"
+provisionedCidrs:
+  - "{{ Region4DevWorkloadsCidr }}"
+sourceIpamPool: "{{ AcceleratorPrefix }}-{{ Region4 }}-ipam-regional-pool"
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"
+shareTargets:
+  organizationalUnits:
+    - Workloads/Dev

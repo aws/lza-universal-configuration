@@ -105,6 +105,12 @@ This section provides guidance on adapting the Universal Configuration to meet s
 
 link:08-Region-and-Industry-Guidance/index.adoc[Go to Region and Industry Guidance →]
 
+==== Controls Testing
+
+This section explains how the LZA Compliance Workbook and the LZA Universal Configuration Controls Test Pack work together. The workbook maps each Universal Configuration control to compliance frameworks, and the test pack tests the same controls in your deployed environment. Security and compliance teams will find how controls are tested, the coverage across the workbook, and the benefits for assessments.
+
+link:09-Controls-Testing/index.adoc[Go to Controls Testing →]
+
 === Key Configuration Files
 
 The LZA configuration consists of several YAML files that work together to define an AWS landing zone according to best practices:

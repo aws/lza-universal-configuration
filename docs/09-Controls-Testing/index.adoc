@@ -1,0 +1,201 @@
+[#top]
+= Controls Testing
+:toc: left
+:toclevels: 3
+
+[.lead]
+The LZA Universal Configuration Controls Test Pack checks your AWS environment and tells you, control by control, whether the security controls in the LZA Compliance Workbook are in place. You get evidence from your own accounts, mapped to the compliance frameworks you report against.
+
+== Overview
+
+=== What it is
+
+The Universal Configuration is a security baseline for multi-account AWS environments. It is published with the LZA Compliance Workbook, which describes each of its security controls and maps them to compliance frameworks such as NIST 800-53, ISO/IEC 27001, SOC 2 and CMMC. The link:https://aws.amazon.com/blogs/security/introducing-the-landing-zone-accelerator-on-aws-universal-configuration-and-lza-compliance-workbook/[launch blog post] introduces both.
+
+The Controls Test Pack is the companion to the workbook. It runs against your deployed environment and checks each workbook control. The result is a report that shows which controls are in place, which are not, and the resources behind each result.
+
+The LZA team built it to continuously check, as part of internal testing, that the Universal Configuration meets its controls.
+
+IMPORTANT: The test pack deploys temporary test resources in the accounts you test, and, if you opt in, its guardrail tests attempt actions your SCPs and RCPs should deny. If a guardrail is missing, the action can succeed. Read the package README before your first run, and start with a non-production environment. The README also describes a read-only run.
+
+=== Why it matters
+
+The workbook describes how the Universal Configuration is designed. It can't show what is true in your environment today. Environments change after deployment. A policy is detached, a security rule is deleted, a setting is changed by hand, or the configuration is customized for a new workload. Each change can weaken a control without anyone noticing until an audit or an incident.
+
+The Controls Test Pack closes that gap. It replaces manual checks and screenshots with a repeatable test that you can run at any time.
+
+=== What you get
+
+* *Evidence for every control.* All 193 controls in the workbook are tested, and each result carries the workbook control ID.
+* *Results in your framework's terms.* Reports map results to any of the 26 frameworks in the workbook, in OSCAL, an open format that governance, risk and compliance (GRC) tools can import.
+* *Proof that guardrails work.* For preventive controls, the test pack attempts the blocked action and confirms it is denied. It doesn't stop at reading the policy.
+* *Early warning of drift.* Run it after an upgrade or a change. A control that has stopped working shows up as a failure, with the affected resources named.
+* *Tests that follow your configuration.* Expected results come from the configuration you deployed, so your customizations are tested as you made them.
+
+=== Who it is for
+
+* *Security and compliance leaders* who need evidence that the baseline is in place before an assessment.
+* *Auditors and assessors* who want results tied to framework requirements.
+* *Cloud platform teams* who change the environment and need to know that the controls still hold.
+
+=== How the workbook and the test pack fit together
+
+[cols="1,2,2"]
+|===
+| |LZA Compliance Workbook |Controls Test Pack
+
+|Answers |Which controls the Universal Configuration implements, and which framework requirements each one supports |Whether each of those controls is in place in your environment now
+|Based on |The Universal Configuration configuration files |Your deployed LZA configuration and your live accounts
+|Output |Control descriptions, implementation statements and framework mappings |A pass or fail result per control, with the resources checked
+|Used by |Architects, compliance and audit teams preparing an assessment |The same teams, to support the assessment with evidence from the environment
+|===
+
+=== What to read next
+
+* <<the-workbook>> explains what each workbook control contains and lists the 26 frameworks.
+* <<the-test-pack>> explains how the tests work, follows one control from the workbook to a test result, and shows the coverage.
+* <<benefits>> describes each benefit in more detail.
+* <<get-the-test-pack>> tells you where to download it and what to know before your first run.
+
+[#the-workbook]
+== The LZA Compliance Workbook
+
+The workbook is available from link:https://aws.amazon.com/artifact/[AWS Artifact], and the test pack includes a copy of its control mapping as `lza-compliance-workbook-<version>.csv`, named for the workbook version it carries. Each control in the workbook has:
+
+* A *control ID*, such as `LZA-G-SCP-10`. The test pack uses the same ID.
+* A *core foundation* and *capability*, such as Governance and Service Control Policies.
+* The *source configuration file* that implements it, such as `lza-core-guardrails-2.json`.
+* A *description* of what the Universal Configuration does, and an *implementation statement* written for compliance documentation.
+* *Framework mappings*: the requirements in each framework that the control supports.
+
+The test pack for this release carries workbook 1.4.0, which has 193 controls mapped to 26 frameworks. The names below are the workbook's column headers, and are the values the test pack accepts in `LZA_OSCAL_FRAMEWORK` when you choose a framework for the OSCAL report (see <<choosing-a-framework>>):
+
+* NIST 800-53 Rev5, NIST 800-171 Rev2, NIST CSF 2.0
+* CMMC Level 2, DoD Control Correlation Identifier (CCI), NATO D-32
+* ISO-27001 Annex A (2022), ISO-27002, SOC2, HIPAA, CIS Critical Controls v8, PCI-DSS v4.0, NERC-CIP
+* CCM (v4.1.0), CSA Star (CAIQ)
+* C5:2020 (Germany), ENS - Medium (Spain), BIO v2 (Netherlands), ACN - Level 2
+* ISM Australia, ISM New Zealand
+* CCCS Medium (Canada), CCCS High (Canada)
+* NCA Essential Cybersecurity Controls (KSA), NCA Cloud Cybersecurity Controls (KSA), SAMA Cyber Security Framework
+
+Download the latest workbook from AWS Artifact for your assessment. The test pack uses its bundled copy to label results.
+
+[#the-test-pack]
+== The Controls Test Pack
+
+The Controls Test Pack is a set of tests for the Universal Configuration. It runs on the link:https://github.com/aws/cats[Control Acceptance Testing Suite (CATS)], an open source framework for testing AWS environments, published on PyPI as `aws-cats`.
+
+=== How it decides what to expect
+
+The tests don't hard-code the expected state. They read it from the LZA configuration you deployed, the same files LZA used to build your environment. If you customized the Universal Configuration, for example by adding a Region, an account or a VPC, the tests expect your customization.
+
+=== Two kinds of evidence
+
+Each test produces one of two kinds of evidence:
+
+* *Configuration evidence* (175 tests): reads the current state of your accounts and compares it with your configuration. For example, Security Hub standards are enabled, VPC flow logs are delivered to the LogArchive account, and the IAM password policy matches.
+* *Behavioral evidence* (64 tests): attempts an action and checks the result. For example, an action an SCP or RCP should deny is attempted and must be denied, or traffic between VPCs is sent and must be allowed or blocked as designed.
+
+Behavioral evidence matters for preventive controls. A policy can exist and still not work, for example because it's attached to the wrong OU or a condition key is wrong. Attempting the denied action shows the guardrail works.
+
+=== From workbook control to evidence
+
+This example follows control `LZA-G-SCP-10` from the workbook to a test result.
+
+[cols="1,3"]
+|===
+|Workbook field |Value
+
+|Control ID |`LZA-G-SCP-10`
+|Core foundation and capability |Governance, Service Control Policies (SCPs)
+|Source configuration file |`lza-core-guardrails-2.json`
+|Description |Restricts the modification of LZA IAM roles
+|Framework mappings (examples) |NIST 800-53 Rev5: CM-3 (1), CM-3 (8), CM-5, CM-5 (5), CM-6, SA-10. CMMC Level 2: CM.L2-3.4.1, 3.4.2, 3.4.5, 3.4.7. ISO-27001 Annex A (2022): A.5.3, A.8.2, A.8.15, A.8.16. SOC2: CC6.3, CC8.1
+|===
+
+The test pack test for this control, `test_scp_blocks_lza_iam_role_modification`, runs in each account the guardrail applies to. It attempts to delete an LZA IAM role and passes only when the request is refused by an explicit deny in a service control policy. A refusal for any other reason, such as missing permissions on the test role, fails the test, so a misconfigured test can't pass by accident.
+
+The result is reported under `LZA-G-SCP-10`. If you choose a framework for the run (see <<choosing-a-framework>>), the OSCAL finding is written against that framework's requirements instead, for example NIST 800-53 Rev5 controls CM-3 (1), CM-5 and the others listed above.
+
+=== Coverage
+
+Every control in the workbook has at least one test: 193 of 193 controls, with 239 tests. Some tests cover more than one control, and a test that covers controls from two foundations is counted in both rows below.
+
+[cols="2,1,1"]
+|===
+|Core foundation |Workbook controls |Tests
+
+|Governance (Organizations, accounts, SCPs, RCPs, declarative policies, Control Tower) |72 |99
+|Security (security services, Config rules, IAM, encryption, data protection, CloudWatch Logs) |82 |88
+|Logging |6 |6
+|Network architecture |3 |2
+|Network security (traffic, firewall, DNS) |8 |18
+|Network logging |8 |7
+|VPC design |8 |9
+|Internet gateway design |1 |2
+|Transit gateway design |3 |3
+|Resource Access Manager (RAM) settings |2 |5
+|===
+
+Four tests check controls that the Universal Configuration can't fully meet today, because of two open LZA defects. They are reported as expected failures (`xfailed`), with the affected resources listed, so the control stays in the evidence. The package README lists them with the LZA issue and what you can do.
+
+[#benefits]
+== Benefits
+
+*Evidence from the environment, not the design.* Each result comes from your accounts at the time of the run, labeled with the workbook control ID. It complements the workbook's design-level implementation statements.
+
+*Framework-aligned reports.* Results are written as JSON, JUnit and OSCAL Assessment Results. Every result carries the workbook control ID, and when you choose a workbook framework for the run the OSCAL findings are written against its requirements, so the same test results can be rendered for any framework in the workbook.
+
+*Preventive controls proven by attempt.* Guardrail tests attempt the denied action instead of only reading the policy, so a policy that exists but doesn't take effect is found.
+
+*Drift detection after every change.* Run the test pack after a Universal Configuration upgrade, an LZA pipeline run, or a manual change. A control that stopped working fails, and the result names the affected resources.
+
+*Your configuration, your expected state.* Customizations to the Universal Configuration are tested as you deployed them, with no test changes.
+
+*Decisions recorded, not hidden.* A control you decide doesn't apply is recorded in every report as not run, with your reason, instead of being left out silently.
+
+*Repeatable across environments and releases.* The same tests run in every environment and on every release, so results can be compared over time. The Universal Configuration team runs the test pack on a set of reference environments before each release.
+
+[#get-the-test-pack]
+== Get the test pack
+
+The test pack is the `cats/` directory of this repository and is attached to each link:https://github.com/aws/lza-universal-configuration/releases[Universal Configuration release] as `lza-universal-config-cats-<version>.zip`. One package serves every partition and both LZA deployment types. It includes the tests, the workbook control mapping, a `cats.yaml` for each of the four deployment shapes (Control Tower or Organizations-only, CodePipeline or container) to copy and fill in with your account IDs, and a `pyproject.toml` that pins the CATS engine; `uv sync` installs the engine and the other dependencies from PyPI. The `README.md` in the package covers installation, configuration, running the tests, reading the reports and cleaning up.
+
+Use the test pack from the same release as your deployed Universal Configuration.
+
+[#choosing-a-framework]
+=== Choosing the framework for the report
+
+Every result is reported under its workbook control ID, such as `LZA-G-SCP-10`. To have the OSCAL findings written against one of the 26 frameworks in <<the-workbook>> instead, set the `LZA_OSCAL_FRAMEWORK` environment variable to that framework's column header, spelled exactly as the workbook does, when you run the tests:
+
+[source,bash]
+----
+LZA_OSCAL_FRAMEWORK="ISO-27001 Annex A (2022)" uv run cats test ./tests/
+----
+
+The test pack does not choose a framework for you. With the variable unset, the findings keep the workbook control IDs and no framework mapping is applied. A value that is not one of the column headers stops the run before any test executes, and the error lists the valid names, so a misspelled framework can't produce a report in the wrong vocabulary. One run renders one framework; for a second framework, run the tests again with another value. The JSON and JUnit reports always carry the workbook control ID, whichever framework you choose.
+
+== Scope
+
+[cols="1,2"]
+|===
+|Item |Supported in this release
+
+|AWS partition |Any. The partition is set in `cats.yaml`, every ARN the tests build follows it, and tests for a control whose service does not exist in a partition (for example the Route 53 Resolver DNS Firewall managed domain lists, which the European Sovereign Cloud does not have) are recorded as not run, with the reason
+|Network model |Hub-and-spoke. Not yet shared VPC
+|LZA deployment |Standard (CodePipeline) and container (`LzaDeployment` account)
+|===
+
+[cols="1,1,1,1"]
+|===
+|Universal Configuration |Test pack |Compliance Workbook |CATS engine
+
+|v1.4.0 |`lza-universal-config-cats-v1.4.0.zip` |1.4.0 (`lza-compliance-workbook-1.4.0.csv`) |`aws-cats` 1.0.x (`~=1.0.0`; `uv sync` installs the latest 1.0 patch release)
+|===
+
+The test pack takes the Universal Configuration's version number. The Compliance Workbook and the CATS engine are versioned separately; the workbook version a release carries is in the CSV file name.
+
+IMPORTANT: A passing test run doesn't make an environment compliant. The test pack shows whether the Universal Configuration controls are in place. You remain responsible for determining which requirements apply to you and for assessing whether your environment meets them.
+
+link:#top[Back to Top]

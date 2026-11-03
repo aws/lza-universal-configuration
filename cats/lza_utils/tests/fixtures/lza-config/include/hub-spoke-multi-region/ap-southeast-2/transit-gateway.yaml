@@ -1,0 +1,61 @@
+name: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+account: Network
+region: "{{ Region5 }}"
+shareTargets:
+  organizationalUnits:
+    - Infrastructure
+    - Workloads/Dev
+    - Workloads/Test
+    - Workloads/Prod
+asn: {{ Region5TransitGatewayASN }}
+dnsSupport: enable
+vpnEcmpSupport: enable
+defaultRouteTableAssociation: disable
+defaultRouteTablePropagation: disable
+autoAcceptSharingAttachments: enable
+routeTables:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw-rt-firewall"
+    routes:
+      - destinationCidrBlock: 0.0.0.0/0
+        attachment:
+          vpcName: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress"
+          account: Perimeter
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw-rt-spoke"
+    routes:
+      - destinationCidrBlock: 0.0.0.0/0
+        attachment:
+          vpcName: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection"
+          account: Network
+transitGatewayFlowLogs:
+  maxAggregationInterval: 60
+  destinations:
+    - cloud-watch-logs # Using Log Streaming, CloudWatch Logs are stored in centralized S3
+  defaultFormat: false
+  customFields:
+    - version
+    - resource-type
+    - account-id
+    - tgw-id
+    - tgw-attachment-id
+    - tgw-src-vpc-account-id
+    - tgw-dst-vpc-account-id
+    - tgw-src-vpc-id
+    - tgw-dst-vpc-id
+    - srcaddr
+    - dstaddr
+    - srcport
+    - dstport
+    - protocol
+    - packets
+    - bytes
+    - start
+    - end
+    - log-status
+    - type
+    - tcp-flags
+    - region
+    - flow-direction
+    - packets-lost-no-route
+    - packets-lost-blackhole
+    - pkt-src-aws-service
+    - pkt-dst-aws-service

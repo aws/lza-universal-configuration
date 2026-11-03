@@ -1,0 +1,42 @@
+{
+    "Statement": [
+        {
+            "Sid": "AllowAgentCoreDataPlaneOrgResourcesOnly",
+            "Effect": "Allow",
+            "Principal": "*",
+            "Action": [
+                "bedrock-agentcore:InvokeAgentRuntime",
+                "bedrock-agentcore:InvokeAgentRuntimeForUser",
+                "bedrock-agentcore:InvokeAgentRuntimeCommand",
+                "bedrock-agentcore:InvokeAgentRuntimeWithWebSocketStream",
+                "bedrock-agentcore:InvokeAgentRuntimeWithWebSocketStreamForUser",
+                "bedrock-agentcore:InvokeCodeInterpreter",
+                "bedrock-agentcore:ConnectBrowserAutomationStream",
+                "bedrock-agentcore:CreateEvent",
+                "bedrock-agentcore:GetEvent",
+                "bedrock-agentcore:DeleteEvent",
+                "bedrock-agentcore:ListEvents",
+                "bedrock-agentcore:GetMemoryRecord",
+                "bedrock-agentcore:ListMemoryRecords",
+                "bedrock-agentcore:RetrieveMemoryRecords",
+                "bedrock-agentcore:DeleteMemoryRecord",
+                "bedrock-agentcore:BatchCreateMemoryRecords",
+                "bedrock-agentcore:BatchUpdateMemoryRecords",
+                "bedrock-agentcore:BatchDeleteMemoryRecords",
+                "bedrock-agentcore:ListActors",
+                "bedrock-agentcore:ListSessions",
+                "bedrock-agentcore:GetWorkloadAccessToken",
+                "bedrock-agentcore:GetWorkloadAccessTokenForJWT",
+                "bedrock-agentcore:GetWorkloadAccessTokenForUserId",
+                "bedrock-agentcore:GetResourceOauth2Token",
+                "bedrock-agentcore:GetRuntimeProtectedResourceMetadata"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceOrgID": "${ORG_ID}"
+                }
+            }
+        }
+    ]
+}

@@ -1,0 +1,51 @@
+mandatoryAccounts:
+  - name: Management
+    description: >-
+      The management (primary) account. Do not change the name field for this
+      mandatory account. Note, the account name key does not need to match the
+      AWS account name.
+    email: management@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Root
+  - name: LogArchive
+    description: >-
+      The log archive account. Do not change the name field for this mandatory
+      account. Note, the account name key does not need to match the AWS account
+      name.
+    email: logarchive@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Security
+  - name: Audit
+    description: >-
+      The security audit account (also referred to as the audit account). Do not
+      change the name field for this mandatory account. Note, the account name
+      key does not need to match the AWS account name.
+    email: audit@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Security
+workloadAccounts:
+  - name: SharedServices
+    description: The SharedServices account
+    email: sharedservices@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Infrastructure
+  - name: Network
+    description: The Network account
+    email: network@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Infrastructure
+  - name: Perimeter
+    description: The Perimeter account
+    email: perimeter@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Infrastructure
+  - name: Dev00001
+    description: Dev00001
+    email: dev@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Workloads/Dev
+  - name: Test00001
+    description: Test00001
+    email: test@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Workloads/Test
+  - name: Prod00001
+    description: Prod00001
+    email: prod@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Workloads/Prod
+  - name: Sandbox00001
+    description: Sandbox00001
+    email: sandbox@example.com # <----- UPDATE EMAIL ADDRESS
+    organizationalUnit: Workloads/Sandbox

@@ -1,0 +1,12 @@
+name: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-workloads-prod-pool"
+description: IP regional pool allocation for Prod LZA accounts
+locale: "{{ Region5 }}"
+provisionedCidrs:
+  - "{{ Region5ProdWorkloadsCidr }}"
+sourceIpamPool: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-regional-pool"
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"
+shareTargets:
+  organizationalUnits:
+    - Workloads/Prod

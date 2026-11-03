@@ -1,0 +1,12 @@
+name: "{{ AcceleratorPrefix }}-{{ Region3 }}-ipam-workloads-test-pool"
+description: IP regional pool allocation for Test LZA accounts
+locale: "{{ Region3 }}"
+provisionedCidrs:
+  - "{{ Region3TestWorkloadsCidr }}"
+sourceIpamPool: "{{ AcceleratorPrefix }}-{{ Region3 }}-ipam-regional-pool"
+tags:
+  - key: Accelerator
+    value: "{{ AcceleratorPrefix }}"
+shareTargets:
+  organizationalUnits:
+    - Workloads/Test

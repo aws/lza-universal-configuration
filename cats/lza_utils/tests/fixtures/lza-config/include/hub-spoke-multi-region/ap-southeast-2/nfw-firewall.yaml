@@ -1,0 +1,11 @@
+name: "{{ AcceleratorPrefix }}-{{ Region5 }}-nfw"
+firewallPolicy: "{{ AcceleratorPrefix }}-{{ Region5 }}-nfw-policy"
+subnets:
+  - "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-fw-a"
+  - "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection-fw-b"
+vpc: "{{ AcceleratorPrefix }}-{{ Region5 }}-inspection"
+loggingConfiguration:
+  - destination: cloud-watch-logs # Logs will automatically be forwarded to S3
+    type: ALERT
+  - destination: cloud-watch-logs # Logs will automatically be forwarded to S3
+    type: FLOW

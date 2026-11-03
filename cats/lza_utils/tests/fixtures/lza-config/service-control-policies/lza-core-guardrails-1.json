@@ -1,0 +1,156 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GRCFGR",
+      "Effect": "Deny",
+      "Action": [
+        "config:PutConfigRule",
+        "config:DeleteConfigRule",
+        "config:DeleteEvaluationResults",
+        "config:UntagResource"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:ResourceTag/Accelerator": "${ACCELERATOR_PREFIX}"
+        },
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRLMB",
+      "Effect": "Deny",
+      "Action": [
+        "lambda:Add*",
+        "lambda:Create*",
+        "lambda:Delete*",
+        "lambda:Invoke*",
+        "lambda:Publish*",
+        "lambda:Put*",
+        "lambda:Remove*",
+        "lambda:Update*"
+      ],
+      "Resource": "arn:${PARTITION}:lambda:*:*:function:${ACCELERATOR_PREFIX}*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRSNS",
+      "Effect": "Deny",
+      "Action": [
+        "sns:AddPermission",
+        "sns:CreateTopic",
+        "sns:DeleteTopic",
+        "sns:RemovePermission",
+        "sns:SetTopicAttributes",
+        "sns:Subscribe",
+        "sns:Unsubscribe"
+      ],
+      "Resource": "arn:${PARTITION}:sns:*:*:aws-accelerator-*",
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRCWLG",
+      "Effect": "Deny",
+      "Action": [
+        "logs:AssociateKmsKey",
+        "logs:CreateLogGroup",
+        "logs:DeleteLogGroup",
+        "logs:DeleteLogStream",
+        "logs:DeleteRetentionPolicy",
+        "logs:DisassociateKmsKey",
+        "logs:PutRetentionPolicy"
+      ],
+      "Resource": [
+        "arn:${PARTITION}:logs:*:*:log-group:aws-accelerator-*",
+        "arn:${PARTITION}:logs:*:*:log-group:/aws/lambda/${ACCELERATOR_PREFIX}*",
+        "arn:${PARTITION}:logs:*:*:log-group:aws-accelerator-*:log-stream:*"
+      ],
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GRKIN",
+      "Effect": "Deny",
+      "Action": [
+        "kinesis:Create*",
+        "kinesis:Decrease*",
+        "kinesis:Delete*",
+        "kinesis:Deregister*",
+        "kinesis:Start*",
+        "kinesis:Stop*",
+        "kinesis:Update*",
+        "firehose:Create*",
+        "firehose:Delete*",
+        "firehose:Start*",
+        "firehose:Stop*",
+        "firehose:Update*"
+      ],
+      "Resource": [
+        "arn:${PARTITION}:firehose:*:*:deliverystream/${ACCELERATOR_PREFIX}*",
+        "arn:${PARTITION}:kinesis:*:*:stream/${ACCELERATOR_PREFIX}*"
+      ],
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "GREB",
+      "Effect": "Deny",
+      "Action": [
+        "events:PutRule",
+        "events:PutTargets",
+        "events:RemoveTargets",
+        "events:DisableRule",
+        "events:DeleteRule"
+      ],
+      "Resource": [
+        "arn:${PARTITION}:events:*:*:rule/${ACCELERATOR_PREFIX}*"
+      ],
+      "Condition": {
+        "ArnNotLike": {
+          "aws:PrincipalARN": [
+            "arn:${PARTITION}:iam::*:role/${ACCELERATOR_PREFIX}*",
+            "arn:${PARTITION}:iam::*:role/${MANAGEMENT_ACCOUNT_ACCESS_ROLE}",
+            "arn:${PARTITION}:iam::*:role/cdk-accel*"
+          ]
+        }
+      }
+    }
+  ]
+}

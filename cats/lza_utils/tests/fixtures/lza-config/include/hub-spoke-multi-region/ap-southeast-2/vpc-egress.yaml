@@ -1,0 +1,125 @@
+name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress"
+account: Perimeter
+region: "{{ Region5 }}"
+ipamAllocations:
+  - ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-egress-pool"
+    netmaskLength: {{ HomeRegionEgressVpcMaskLength }}
+defaultSecurityGroupRulesDeletion: true
+internetGateway: true
+enableDnsHostnames: true
+enableDnsSupport: true
+instanceTenancy: default
+queryLogs:
+  - "{{ AcceleratorPrefix }}-{{ HomeRegion }}-query-logs"
+routeTables:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-fw-a"
+    routes: []
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-fw-b"
+    routes: []
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-public-a"
+    routes:
+      - name: TgwRoute
+        destination: "{{ GlobalCidr }}"
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      - name: Internet
+        destination: 0.0.0.0/0
+        type: internetGateway
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-public-b"
+    routes:
+      - name: TgwRoute
+        destination: "{{ GlobalCidr }}"
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      - name: Internet
+        destination: 0.0.0.0/0
+        type: internetGateway
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-tgw-a"
+    routes:
+      - name: TgwRoute
+        destination: "{{ GlobalCidr }}"
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      - name: Internet
+        destination: 0.0.0.0/0
+        type: natGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-public-natgw-a"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-tgw-b"
+    routes:
+      - name: TgwRoute
+        destination: "{{ GlobalCidr }}"
+        type: transitGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      - name: Internet
+        destination: 0.0.0.0/0
+        type: natGateway
+        target: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-public-natgw-b"
+subnets:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-fw-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-fw-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-egress-pool"
+      netmaskLength: {{ HomeRegionEgressFwSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-fw-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-fw-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-egress-pool"
+      netmaskLength: {{ HomeRegionEgressFwSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-public-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-public-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-egress-pool"
+      netmaskLength: {{ HomeRegionEgressPublicSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-public-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-public-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-egress-pool"
+      netmaskLength: {{ HomeRegionEgressPublicSubnetMaskLength }}
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-tgw-a"
+    availabilityZone: a
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-tgw-a"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-egress-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-tgw-b"
+    availabilityZone: b
+    routeTable: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-rt-tgw-b"
+    ipamAllocation:
+      ipamPoolName: "{{ AcceleratorPrefix }}-{{ Region5 }}-ipam-egress-pool"
+      netmaskLength: 28
+    tags:
+      - key: SubnetType
+        value: "{{ AcceleratorPrefix }}-Tgw"
+natGateways:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-public-natgw-a"
+    subnet: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-public-a"
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-public-natgw-b"
+    subnet: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-public-b"
+transitGatewayAttachments:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-egress"
+    transitGateway:
+      name: "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw"
+      account: Network
+    routeTableAssociations:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-tgw-rt-spoke"
+    routeTablePropagations: []
+    subnets:
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-tgw-a"
+      - "{{ AcceleratorPrefix }}-{{ Region5 }}-egress-tgw-b"
+gatewayEndpoints:
+  defaultPolicy: Endpoint-Default
+  endpoints:
+    - service: s3
+    - service: dynamodb
+useCentralEndpoints: true
+dnsFirewallRuleGroups:
+  - name: "{{ AcceleratorPrefix }}-{{ Region5 }}-dns-firewall"
+    priority: 101
+    mutationProtection: ENABLED

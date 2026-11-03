@@ -1,0 +1,42 @@
+[
+  {
+    "logGroupPattern": "/AWSAccelerator-SecurityHub",
+    "s3Prefix": "security-hub"
+  },
+  {
+    "logGroupPattern": "AWSAccelerator-sessionmanager-logs",
+    "s3Prefix": "session-manager"
+  },
+  {
+    "logGroupPattern": "AWSAccelerator-*FirewallAlertLogGroup*",
+    "s3Prefix": "network-firewall/alert"
+  },
+  {
+    "logGroupPattern": "AWSAccelerator-*FirewallFlowLogGroup*",
+    "s3Prefix": "network-firewall/flow"
+  },
+  {
+    "logGroupPattern": "AWSAccelerator-*FlowLogsGroup*",
+    "s3Prefix": "vpc-flow-logs"
+  },
+  {
+    "logGroupPattern": "AWSAccelerator-*QueryLogsLogGroup*",
+    "s3Prefix": "route53-resolver-query-logs"
+  },
+  {
+    "logGroupPattern": "/aws/transitgateway/*",
+    "s3Prefix": "tgw-flow-logs"
+  },
+  {
+    "logGroupPattern": "/aws/lambda/*",
+    "s3Prefix": "lambda"
+  },
+  {
+    "logGroupPattern": "/aws/codebuild/*",
+    "s3Prefix": "codebuild"
+  },
+  {
+    "logGroupPattern": "StackSet-AWSControlTowerBP*",
+    "s3Prefix": "AWSControlTowerBP"
+  }
+]
