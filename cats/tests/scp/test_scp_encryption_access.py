@@ -112,17 +112,19 @@ def test_rcp_blocks_kms_key_modification(account_fixture_name: str, region: str,
     client = account.session.client("kms", region_name=region, config=DEFAULT_RETRY_CONFIG)
     tagging_client = account.session.client("resourcegroupstaggingapi", region_name=region, config=DEFAULT_RETRY_CONFIG)
 
-    # act - find KMS keys tagged Accelerator=AWSAccelerator
+    accelerator_prefix = lza_config().accelerator_prefix
+
+    # act - find KMS keys carrying LZA's Accelerator tag, the tag the RCP conditions on
     accelerator_key_arns = [
         resource["ResourceARN"]
         for page in tagging_client.get_paginator("get_resources").paginate(
             ResourceTypeFilters=["kms:key"],
-            TagFilters=[{"Key": "Accelerator", "Values": ["AWSAccelerator"]}],
+            TagFilters=[{"Key": "Accelerator", "Values": [accelerator_prefix]}],
         )
         for resource in page["ResourceTagMappingList"]
     ]
 
-    assert accelerator_key_arns, f"No KMS keys tagged Accelerator=AWSAccelerator found in {account_fixture_name} {region}"
+    assert accelerator_key_arns, f"No KMS keys tagged Accelerator={accelerator_prefix} found in {account_fixture_name} {region}"
 
     # assert - attempt to update the key description (denied by RCP)
     with pytest.raises(ClientError, match="explicit deny in a resource control policy"):

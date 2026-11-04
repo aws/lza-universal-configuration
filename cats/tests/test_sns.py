@@ -42,7 +42,7 @@ def _expected_topic_names() -> list[str]:
     config = lza_config()
     sns_config = config.global_.sns_topics
     assert sns_config is not None, "snsTopics not configured in global config"
-    return [f"{config.resource_prefix}-{topic.name}" for topic in sns_config.topics]
+    return [f"{config.sns_topic_name_prefix}-{topic.name}" for topic in sns_config.topics]
 
 
 @cats(standard_name=["LZA-SEC-SNS-1"], test_suite="sns", test_id="1", evidence=Evidence.CONFIGURATION)
@@ -99,7 +99,7 @@ def test_sns_security_high_topic(Management_account: ManagementAccount) -> None:
     """Verify SecurityHigh SNS topic exists."""
     # arrange
     config = lza_config()
-    expected_name = f"{config.resource_prefix}-SecurityHigh"
+    expected_name = f"{config.sns_topic_name_prefix}-SecurityHigh"
 
     # act
     topic_arns = get_sns_topic_arns(Management_account, config.home_region)
@@ -114,7 +114,7 @@ def test_sns_security_medium_topic(Management_account: ManagementAccount) -> Non
     """Verify SecurityMedium SNS topic exists."""
     # arrange
     config = lza_config()
-    expected_name = f"{config.resource_prefix}-SecurityMedium"
+    expected_name = f"{config.sns_topic_name_prefix}-SecurityMedium"
 
     # act
     topic_arns = get_sns_topic_arns(Management_account, config.home_region)

@@ -45,3 +45,31 @@ def trusted_service_principals(assume_role_policy_document: PolicyDocumentTypeDe
         if statement["Effect"] == "Allow" and isinstance(statement.get("Principal"), dict)
         for principal in _as_list(statement["Principal"].get("Service", []))
     }
+
+
+# Statement elements IAM accepts as either one string or a list of strings.
+_LIST_OR_STRING_ELEMENTS = ("Action", "NotAction", "Resource", "NotResource")
+
+
+def canonical_statement(statement: Mapping[str, Any]) -> dict[str, Any]:
+    """A statement with every element IAM accepts as string-or-list written as a list.
+
+    ``Action``, ``NotAction``, ``Resource``, ``NotResource``, each ``Principal`` /
+    ``NotPrincipal`` entry and each condition value may be written as one string or a
+    one-element list; IAM treats them as the same policy. Organizations stores RCP content
+    with one-element lists collapsed to strings (SCP content keeps them), so a deployed
+    RCP statement only compares equal to its configured source after both pass through
+    here. Anything else is returned untouched.
+    """
+    canonical = dict(statement)
+    for element in _LIST_OR_STRING_ELEMENTS:
+        if element in canonical:
+            canonical[element] = _as_list(canonical[element])
+    for element in ("Principal", "NotPrincipal"):
+        if isinstance(canonical.get(element), dict):
+            canonical[element] = {kind: _as_list(value) for kind, value in canonical[element].items()}
+    if "Condition" in canonical:
+        canonical["Condition"] = {
+            operator: {key: _as_list(value) for key, value in pairs.items()} for operator, pairs in canonical["Condition"].items()
+        }
+    return canonical

@@ -108,7 +108,7 @@ def test_scp_revert_changes_rule_targets_revert_lambda(Management_account: Manag
 
     partition = Settings().cats_deployment_settings.partition
     expected_sns_topic_arn = (
-        f"arn:{partition}:sns:{config.home_region}:{Management_account.account_id}:{config.resource_prefix}-{revert_config.sns_topic_name}"
+        f"arn:{partition}:sns:{config.home_region}:{Management_account.account_id}:{config.sns_topic_name_prefix}-{revert_config.sns_topic_name}"
         if revert_config.sns_topic_name
         else ""
     )

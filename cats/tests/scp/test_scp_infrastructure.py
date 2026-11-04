@@ -89,11 +89,11 @@ def test_scp_blocks_s3_bucket_policy_modification(account_fixture_name: str, get
     # arrange
     account = get_account_fixture(account_fixture_name)
     client = account.session.client("s3", config=DEFAULT_RETRY_CONFIG)
-    accelerator_prefix = lza_config().accelerator_prefix.lower()
+    bucket_prefix = f"{lza_config().bucket_name_prefix}-"
 
     bucket_names = get_s3_buckets(account)
-    protected = [name for name in bucket_names if accelerator_prefix in name.lower() or "aws-accelerator" in name.lower()]
-    assert protected, f"No accelerator S3 buckets found in {account_fixture_name}"
+    protected = [name for name in bucket_names if name.startswith(bucket_prefix)]
+    assert protected, f"No {bucket_prefix} S3 buckets found in {account_fixture_name}"
 
     # act & assert
     with pytest.raises(ClientError, match="explicit deny in a service control policy"):

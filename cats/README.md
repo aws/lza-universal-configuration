@@ -78,9 +78,13 @@ Where the configuration comes from, in order:
    `modules/temp/` directory UC's own scripts produce in a UC checkout.
 2. The deployed zip in the installer config bucket, read through `deploy_role_name` in the
    account that owns the bucket and unpacked once per object version under `.pytest_cache/`.
-   - CodePipeline installer: nothing to set. The bucket is
+   - CodePipeline installer with the default `AcceleratorPrefix`: nothing to set. The bucket is
      `aws-accelerator-config-<management account ID>-<aws_region>`, key
      `zipped/aws-accelerator-config.zip`, in the account tagged `management` in `cats.yaml`.
+   - CodePipeline installer with a custom `AcceleratorPrefix`: LZA names the bucket
+     `<prefix lower-cased>-config-<management account ID>-<aws_region>` and the prefix is only
+     recorded inside the zip, so set `LZA_CONFIG_ACCOUNT` (the management account's key in
+     `cats.yaml`), `LZA_CONFIG_BUCKET` and `LZA_CONFIG_KEY` (`zipped/aws-accelerator-config.zip`).
    - Container installer: the bucket belongs to the `InstallerContainerStack` and its name
      depends on your accelerator qualifier, so set all three of `LZA_CONFIG_ACCOUNT` (the
      account's key in `cats.yaml`, for example `LzaDeployment`), `LZA_CONFIG_BUCKET` and

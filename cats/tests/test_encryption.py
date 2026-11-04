@@ -38,19 +38,18 @@ logger = logging.getLogger(__name__)
 # Buckets where the AWS API does not support SSE-KMS with CMK — AES256 is compliant.
 # Log destination buckets: AWS requires AES256 for S3 access log destinations.
 # CUR bucket: neither the CUR API nor LZA schema exposes an encryption parameter.
-_PREFIX = lza_config().resource_prefix
+_BUCKET_PREFIX = lza_config().bucket_name_prefix
 _AES256_ALLOWED_PREFIXES = (
-    f"{_PREFIX}-s3-access-logs-",
-    f"{_PREFIX}-s3-logs-",
-    f"{_PREFIX}-elb-access-logs-",
-    f"{_PREFIX}-assets-logs-",
-    f"{_PREFIX}-cur-",
+    f"{_BUCKET_PREFIX}-s3-access-logs-",
+    f"{_BUCKET_PREFIX}-s3-logs-",
+    f"{_BUCKET_PREFIX}-elb-access-logs-",
+    f"{_BUCKET_PREFIX}-assets-logs-",
+    f"{_BUCKET_PREFIX}-cur-",
 )
 
 
 def _is_lza_bucket(bucket_name: str) -> bool:
-    accelerator_prefix = lza_config().accelerator_prefix.lower()
-    return bucket_name.lower().startswith(accelerator_prefix) or bucket_name.startswith("aws-accelerator")
+    return bucket_name.startswith(f"{_BUCKET_PREFIX}-")
 
 
 def _get_encryption_algorithm(s3_client: S3Client, bucket_name: str) -> str | None:

@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING
 from unittest.mock import Mock
 
 import pytest
+from botocore.exceptions import ClientError
 from cats.config import Settings
 from cats.exceptions import CatsConfigError
 
@@ -156,6 +157,19 @@ def test_pull_deployed_config_removes_its_staging_dir_when_another_worker_won(mo
     # assert
     assert result == target
     assert sorted(p.name for p in (tmp_path / "bucket").iterdir()) == ["abc123"]
+
+
+def test_pull_deployed_config_names_the_prefix_override_when_the_derived_bucket_is_missing(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """A derived bucket that does not exist is what a non-default AcceleratorPrefix looks like; the error says how to point at the real one."""
+    # arrange
+    client = Mock()
+    client.head_object.side_effect = ClientError({"Error": {"Code": "NoSuchBucket", "Message": "x"}}, "HeadObject")
+    monkeypatch.setattr(config_source, "config_bucket_client", lambda location: client)
+    location = DeployedConfigLocation("Management", "aws-accelerator-config-111111111111-us-east-1", CODEPIPELINE_CONFIG_KEY)
+
+    # act / assert
+    with pytest.raises(CatsConfigError, match=r"non-default AcceleratorPrefix.*LZA_CONFIG_ACCOUNT, LZA_CONFIG_BUCKET and LZA_CONFIG_KEY"):
+        pull_deployed_config(location, cache_root=tmp_path)
 
 
 def test_pull_deployed_config_caches_by_etag(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:

@@ -153,7 +153,7 @@ def main() -> int:
         for (suite, test_id), locations in duplicate_test_ids.items():
             print(f"  {suite}/{test_id}: {', '.join(locations)}")
 
-    return 1 if uncovered or evidence_violations or duplicate_test_ids else 0
+    return 1 if uncovered or unknown or evidence_violations or duplicate_test_ids else 0
 
 
 if __name__ == "__main__":

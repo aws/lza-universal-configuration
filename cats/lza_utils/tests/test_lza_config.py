@@ -13,6 +13,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 from typing import TYPE_CHECKING, Any, cast
@@ -82,6 +83,39 @@ def test_accelerator_prefix_is_plain_string() -> None:
     prefix = cfg.accelerator_prefix
     assert prefix == "AWSAccelerator", f"Expected 'AWSAccelerator', got '{prefix}'"
     assert "root=" not in prefix, f"Pydantic repr leak in prefix: {prefix}"
+
+
+@pytest.mark.parametrize(
+    ("accelerator_prefix", "expected_bucket_prefix", "expected_sns_prefix", "expected_log_group_prefix", "expected_ssm_prefix"),
+    [
+        ("AWSAccelerator", "aws-accelerator", "aws-accelerator", "aws-accelerator", "/accelerator"),
+        ("CustomPrefix", "customprefix", "CustomPrefix", "CustomPrefix", "/CustomPrefix"),
+        ("my-org", "my-org", "my-org", "my-org", "/my-org"),
+    ],
+)
+def test_resource_name_prefixes_mirror_lza_set_resource_prefixes(
+    accelerator_prefix: str,
+    expected_bucket_prefix: str,
+    expected_sns_prefix: str,
+    expected_log_group_prefix: str,
+    expected_ssm_prefix: str,
+) -> None:
+    """Verify the per-resource prefixes follow LZA's setResourcePrefixes() for the default and a custom AcceleratorPrefix.
+
+    LZA special-cases ``AWSAccelerator`` and otherwise lower-cases the prefix for bucket names
+    while leaving it unchanged for SNS topic and log group names.
+    """
+    # arrange
+    cfg = copy.copy(lza_config())
+    cfg.replacements = {**cfg.replacements, "AcceleratorPrefix": accelerator_prefix}
+
+    # act / assert
+    assert (cfg.bucket_name_prefix, cfg.sns_topic_name_prefix, cfg.log_group_name_prefix, cfg.ssm_parameter_prefix) == (
+        expected_bucket_prefix,
+        expected_sns_prefix,
+        expected_log_group_prefix,
+        expected_ssm_prefix,
+    )
 
 
 def test_enabled_regions_are_plain_strings() -> None:
@@ -218,21 +252,28 @@ def test_available_fixtures_filters_unknown_accounts() -> None:
 
 
 def test_resolve_policy_file_substitutes_every_lza_variable() -> None:
-    """Verify resolve_policy_file knows every ${VARIABLE} used across the configured SCPs.
+    """Verify resolve_policy_file knows every ${VARIABLE} used across the configured SCPs and RCPs.
 
     LZA substitutes ${Variable} placeholders at deploy time. If a policy file uses
     one our helper does not map, the live statement-match tests fail with a confusing
     diff; catch it here instead. IAM's own ${aws:...} policy variables contain a colon
-    and are deliberately not matched; LZA's ${ACCEL_LOOKUP::...} lookups are.
+    and are deliberately not matched; LZA's ${ACCEL_LOOKUP::...} lookups are. The RCP
+    documents use the two placeholders only the live deployment can supply; the values
+    passed here stand in for what tests/test_rcp.py reads from the Organization.
     """
     # arrange
     cfg = lza_config()
     lza_placeholder = re.compile(r"\$\{(?:[A-Za-z][A-Za-z0-9_]*|ACCEL_LOOKUP::[^}]*)\}")
+    deployment_values = {"${ORG_ID}": "o-exampleorgid", "${LOGARCHIVE_ACCOUNT_ID}": "222222222222"}
+    policy_paths = {
+        **{policy.name: policy.policy for policy in cfg.organization.service_control_policies},
+        **{policy.name: policy.policy for policy in cfg.organization.resource_control_policies or []},
+    }
 
     # act
     unresolved = {
-        policy.name: sorted(set(lza_placeholder.findall(json.dumps(cfg.resolve_policy_file(policy.policy)))))
-        for policy in cfg.organization.service_control_policies
+        name: sorted(set(lza_placeholder.findall(json.dumps(cfg.resolve_policy_file(path, deployment_values)))))
+        for name, path in policy_paths.items()
     }
     unresolved = {name: placeholders for name, placeholders in unresolved.items() if placeholders}
 

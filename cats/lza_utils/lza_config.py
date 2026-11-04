@@ -37,6 +37,7 @@ from lza_types.replacements_config import ParameterReplacementV2
 from lza_utils.config_source import lza_config_dir
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from pathlib import Path
 
     from lza_types.iam_config import RoleConfig
@@ -182,13 +183,16 @@ class LzaConfig:
         """
         return "/accelerator" if self.accelerator_prefix == "AWSAccelerator" else f"/{self.accelerator_prefix}"
 
-    def resolve_policy_file(self, policy_path: str) -> dict[str, Any]:
+    def resolve_policy_file(self, policy_path: str, deployment_values: Mapping[str, str] | None = None) -> dict[str, Any]:
         """Load a policy JSON document with LZA ${VARIABLE} placeholders resolved.
 
         Mirrors the substitution LZA's generatePolicyReplacements() applies at deploy
-        time, so a resolved document compares equal to deployed policy content. Only
-        deployment-wide values are resolved; per-stack ones (${ACCOUNT_ID}, ${REGION},
-        ${ACCOUNT_NAME}, ${ORG_ID}) are not available from the config files. A
+        time, so a resolved document compares equal to deployed policy content. Values the
+        config files hold are resolved here; ``deployment_values`` supplies the ones only
+        the live deployment knows, keyed by placeholder (``{"${ORG_ID}": ...,
+        "${LOGARCHIVE_ACCOUNT_ID}": ...}``); it is applied last and so overrides a
+        config-derived value for the same placeholder. Per-stack placeholders (${ACCOUNT_ID},
+        ${REGION}, ${ACCOUNT_NAME}) have no single value and are never resolved. A
         ``${ACCEL_LOOKUP::CUSTOM:<Key>}`` lookup resolves to the globalReplacements value
         of ``<Key>``. An unmapped placeholder survives into the result and fails that
         comparison loudly.
@@ -204,15 +208,39 @@ class LzaConfig:
             "${MANAGEMENT_ACCOUNT_ACCESS_ROLE}": self.global_.management_account_access_role,
             # globalReplacements keys are also valid as ${Key} inside policy files
             **{f"${{{key}}}": value for key, value in self.replacements.items()},
+            **(deployment_values or {}),
         }
         document: dict[str, Any] = json.loads(resolve_policy_placeholders(_policy_file_text(policy_path), substitutions, self.replacements))
         return document
 
     @property
-    def resource_prefix(self) -> str:
-        """Kebab-case prefix used in deployed resource names (e.g. 'aws-accelerator')."""
-        parts = re.findall(r"[A-Z]+(?=[A-Z][a-z])|[A-Z][a-z]*|[a-z]+", self.accelerator_prefix)
-        return "-".join(parts).lower()
+    def bucket_name_prefix(self) -> str:
+        """Prefix LZA gives the S3 buckets it creates.
+
+        Mirrors ``bucketName`` in LZA's setResourcePrefixes(): ``aws-accelerator`` for the
+        default prefix, otherwise the configured prefix lower-cased (``CustomPrefix`` ->
+        ``customprefix``).
+        """
+        return "aws-accelerator" if self.accelerator_prefix == "AWSAccelerator" else self.accelerator_prefix.lower()
+
+    @property
+    def sns_topic_name_prefix(self) -> str:
+        """Prefix LZA gives the SNS topics it creates.
+
+        Mirrors ``snsTopicName`` in LZA's setResourcePrefixes(): ``aws-accelerator`` for the
+        default prefix, otherwise the configured prefix unchanged.
+        """
+        return "aws-accelerator" if self.accelerator_prefix == "AWSAccelerator" else self.accelerator_prefix
+
+    @property
+    def log_group_name_prefix(self) -> str:
+        """Prefix LZA gives the CloudTrail and Session Manager log groups it creates.
+
+        Mirrors ``trailLogName`` and ``ssmLogName`` in LZA's setResourcePrefixes(), which are
+        identical: ``aws-accelerator`` for the default prefix, otherwise the configured prefix
+        unchanged (``<prefix>-cloudtrail-logs``, ``<prefix>-sessionmanager-logs``).
+        """
+        return "aws-accelerator" if self.accelerator_prefix == "AWSAccelerator" else self.accelerator_prefix
 
     def central_logs_bucket_name(self, log_archive_account_id: str) -> str:
         """Name of the central logs bucket in the LogArchive account.
@@ -226,7 +254,7 @@ class LzaConfig:
         if central_log_bucket is not None and central_log_bucket.imported_bucket is not None:
             return central_log_bucket.imported_bucket.name
         region = self.global_.logging.centralized_logging_region or self.home_region
-        return f"{self.resource_prefix}-central-logs-{log_archive_account_id}-{region}"
+        return f"{self.bucket_name_prefix}-central-logs-{log_archive_account_id}-{region}"
 
     def guardduty_findings_destination_arn(self, log_archive_account_id: str) -> str:
         """S3 ARN GuardDuty publishes findings to, as LZA's SecurityStack builds it.
@@ -251,7 +279,7 @@ class LzaConfig:
         elb_log_bucket = self.global_.logging.elb_log_bucket
         if elb_log_bucket is not None and elb_log_bucket.imported_bucket is not None:
             return elb_log_bucket.imported_bucket.name
-        return f"{self.resource_prefix}-elb-access-logs-{log_archive_account_id}-{region}"
+        return f"{self.bucket_name_prefix}-elb-access-logs-{log_archive_account_id}-{region}"
 
     @property
     def config_rule_sets(self) -> list[AwsConfigRuleSet]:

@@ -41,11 +41,12 @@ logger = logging.getLogger(__name__)
 
 
 def _protected_log_group_prefixes() -> list[str]:
-    """Log-group name prefixes every guardrail SCP denies on: the aws-accelerator-* groups and the stage-stem Lambda groups.
+    """Log-group name prefixes every guardrail SCP denies on: LZA's trail/SSM log groups and the stage-stem Lambda groups.
 
     The core SCP covers /aws/lambda/<prefix>*; the deployment SCP only /aws/lambda/<prefix>-<stage stem>*.
     """
-    return ["aws-accelerator-", *(f"/aws/lambda/{stage_prefix}" for stage_prefix in lza_config().stage_resource_prefixes)]
+    config = lza_config()
+    return [f"{config.log_group_name_prefix}-", *(f"/aws/lambda/{stage_prefix}" for stage_prefix in config.stage_resource_prefixes)]
 
 
 def _protected_log_groups(client: CloudWatchLogsClient) -> list[str]:
@@ -61,14 +62,15 @@ def _protected_log_groups(client: CloudWatchLogsClient) -> list[str]:
 @pytest.mark.parametrize("region", lza_config().enabled_regions)
 @cats(standard_name=["LZA-G-SCP-4"], test_suite="scp", test_id="4", mutating=True, evidence=Evidence.BEHAVIORAL)
 def test_scp_blocks_sns_topic_modification(LogArchive_account: LogArchiveAccount, region: str) -> None:
-    """Verify SCP denies modification of LZA SNS topics (aws-accelerator-* prefix)."""
+    """Verify SCP denies modification of LZA SNS topics."""
     # arrange
     client = LogArchive_account.session.client("sns", region_name=region, config=DEFAULT_RETRY_CONFIG)
+    topic_prefix = f"{lza_config().sns_topic_name_prefix}-"
 
-    # act - find an aws-accelerator- prefixed topic
+    # act - find an LZA topic
     all_topics = [topic for page in client.get_paginator("list_topics").paginate() for topic in page["Topics"]]
-    protected_topic_arns = [t["TopicArn"] for t in all_topics if t["TopicArn"].split(":")[-1].startswith("aws-accelerator-")]
-    assert protected_topic_arns, f"No aws-accelerator- SNS topics found in LogArchive {region}"
+    protected_topic_arns = [t["TopicArn"] for t in all_topics if t["TopicArn"].split(":")[-1].startswith(topic_prefix)]
+    assert protected_topic_arns, f"No {topic_prefix} SNS topics found in LogArchive {region}"
 
     # assert - attempt to set attributes on the protected topic
     with pytest.raises(ClientError, match="explicit deny in a service control policy"):

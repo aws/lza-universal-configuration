@@ -50,7 +50,7 @@ def _elb_access_logs_bucket_name(account_id: str, region: str) -> str:
 
 
 def _s3_access_logs_bucket_name(account_id: str, region: str) -> str:
-    return f"{lza_config().resource_prefix}-s3-access-logs-{account_id}-{region}"
+    return f"{lza_config().bucket_name_prefix}-s3-access-logs-{account_id}-{region}"
 
 
 @cats(standard_name=["LZA-LOG-1"], test_suite="logging", test_id="1", evidence=Evidence.CONFIGURATION)

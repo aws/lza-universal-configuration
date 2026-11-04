@@ -29,7 +29,11 @@ Resolution order:
 
 The container installer's bucket is a resource of the InstallerContainerStack whose name depends
 on the AcceleratorQualifier, so a container deployment sets the three variables (the CI configs
-do). With no source at all the error names both options; there is no built-in fallback.
+do). The derived name also assumes the default ``AcceleratorPrefix``: LZA names the bucket
+``<bucketName prefix>-config-<account>-<region>`` and the prefix is only known from the
+``replacements-config.yaml`` inside the zip, so a non-default prefix sets the three variables
+too (``<AcceleratorPrefix lower-cased>-config-<management account>-<aws_region>``). With no
+source at all the error names both options; there is no built-in fallback.
 """
 
 from __future__ import annotations
@@ -42,8 +46,11 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import boto3
+from botocore.exceptions import ClientError
 from cats.config import Settings
 from cats.exceptions import CatsConfigError
+
+from cats_utils.boto import get_error_code
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -150,7 +157,17 @@ def pull_deployed_config(location: DeployedConfigLocation, cache_root: Path = _C
     half-unpacked tree.
     """
     client = config_bucket_client(location)
-    etag = client.head_object(Bucket=location.bucket, Key=location.key)["ETag"].strip('"')
+    try:
+        etag = client.head_object(Bucket=location.bucket, Key=location.key)["ETag"].strip('"')
+    except ClientError as e:
+        if get_error_code(e) not in ("NoSuchBucket", "404"):
+            raise
+        variables = f"{CONFIG_ACCOUNT_VARIABLE}, {CONFIG_BUCKET_VARIABLE} and {CONFIG_KEY_VARIABLE}"
+        custom_prefix_bucket = "<AcceleratorPrefix lower-cased>-config-<management account ID>-<region>"
+        hint = (
+            f"a CodePipeline installer with a non-default AcceleratorPrefix names its bucket {custom_prefix_bucket}; set {variables} to point at it"
+        )
+        raise CatsConfigError(f"Configuration zip not found at {location}: {hint}.") from e
     target = cache_root / location.bucket / etag
     if target.is_dir():
         return target
