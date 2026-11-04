@@ -16,6 +16,12 @@ When applying updates, review the changes in this release alongside your current
 
   **Upgrade Notes**: Optional. No change to the configuration files or to deployed resources. The test pack deploys temporary test resources in the accounts you test, and its guardrail tests attempt actions your SCPs and RCPs should deny. Read the `README.md` in the test pack before your first run, and start with a non-production environment. Supported in every partition, with the hub-and-spoke network model; the pack ships a `cats.yaml` for each of the four deployment shapes (Control Tower or Organizations-only, CodePipeline or container).
 
+### Bug Fixes
+
+- **Controls Test Pack Collection Time**: Collecting the test suite no longer performs an STS `AssumeRole` and an S3 `HeadObject` for every policy file it reads. The test pack now resolves the deployed configuration directory once per process. Full collection drops from about 55 seconds to about 2 seconds, and `cats test -n auto` starts producing results within seconds instead of appearing to hang at `ready: N/N workers`.
+
+  **Upgrade Notes**: No change to the configuration files or to deployed resources. A redeployed configuration is still detected: each test process checks the configuration zip's ETag the first time it resolves the directory.
+
 ### Improvements
 
 - **Transit Gateway Encryption Support (Optional)**: Added a commented-out `encryptionSupport` setting to the Transit Gateway in both networking models, and documentation for combining it with VPC Encryption Controls, enforced through an AWS Organizations declarative policy, to help enforce encryption in transit within a Region.

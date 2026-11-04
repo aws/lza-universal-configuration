@@ -189,3 +189,21 @@ def test_pull_deployed_config_caches_by_etag(monkeypatch: pytest.MonkeyPatch, tm
     assert (first / "global-config.yaml").read_text() == "a: 1\n"
     assert client.get_object.call_count == 1
     assert client.head_object.call_count == 2
+
+
+def test_lza_config_dir_resolves_the_deployed_config_once_per_process(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # arrange
+    monkeypatch.delenv(LOCAL_CONFIG_DIR_VARIABLE, raising=False)
+    pull = Mock(return_value=tmp_path)
+    monkeypatch.setattr(config_source, "deployed_config_location", lambda: DeployedConfigLocation("Management", "bucket", "k"))
+    monkeypatch.setattr(config_source, "pull_deployed_config", pull)
+    config_source._deployed_config_dir.cache_clear()
+
+    # act
+    first = lza_config_dir()
+    second = lza_config_dir()
+
+    # assert - one STS/S3 round trip, however many policy files the tests read
+    assert first == second == tmp_path
+    assert pull.call_count == 1
+    config_source._deployed_config_dir.cache_clear()

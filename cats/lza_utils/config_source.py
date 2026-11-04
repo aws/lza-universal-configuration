@@ -42,6 +42,7 @@ import io
 import os
 import shutil
 import zipfile
+from functools import cache
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -182,6 +183,17 @@ def pull_deployed_config(location: DeployedConfigLocation, cache_root: Path = _C
     return target
 
 
+@cache
+def _deployed_config_dir() -> Path:
+    """The deployed configuration, resolved once per process.
+
+    Resolving it costs an STS AssumeRole and an S3 HeadObject, and the tests read many policy
+    files from the directory (one per SCP and RCP, some at collection time), so the path is
+    cached for the life of the process. The ETag check still happens on every new process.
+    """
+    return pull_deployed_config(deployed_config_location())
+
+
 def lza_config_dir() -> Path:
     """Directory containing the LZA configuration files the tests read (module docstring for the order)."""
     local = os.environ.get(LOCAL_CONFIG_DIR_VARIABLE)
@@ -190,4 +202,4 @@ def lza_config_dir() -> Path:
         if not path.is_dir():
             raise CatsConfigError(f"{LOCAL_CONFIG_DIR_VARIABLE}={local} is not a directory")
         return path
-    return pull_deployed_config(deployed_config_location())
+    return _deployed_config_dir()
