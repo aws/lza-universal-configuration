@@ -8,27 +8,13 @@ We highly recommend that you keep your environments up to date by upgrading to t
 
 When applying updates, review the changes in this release alongside your current configuration to decide which features from this version to adopt.
 
-## [1.4.0] - Unreleased
+## [1.4.0] - 2026-11-04
 
 ### New Features
 
 - **LZA Universal Configuration Controls Test Pack**: Added the Controls Test Pack as the `cats/` directory and as a release asset (`lza-universal-config-cats-<version>.zip`) and a new [Controls Testing](./docs/09-Controls-Testing/index.adoc) documentation chapter. The test pack runs on [CATS (Control Acceptance Testing Suite)](https://github.com/aws/cats). It checks a deployed environment against all 193 controls in the LZA Compliance Workbook (carried as `lza-compliance-workbook-1.4.0.csv`; the workbook is versioned independently of the Universal Configuration) and reports each result under the workbook control ID, mapped in the OSCAL Assessment Results to the workbook compliance framework you choose for the run with `LZA_OSCAL_FRAMEWORK`. It ships a `cats.yaml` example for each of the four deployment shapes (Control Tower or Organizations-only, CodePipeline or container).
 
   **Upgrade Notes**: Optional. No change to the configuration files or to deployed resources. The test pack deploys temporary test resources in the accounts you test, and its guardrail tests attempt actions your SCPs and RCPs should deny. Read the `README.md` in the test pack before your first run, and start with a non-production environment. Supported in every partition, with the hub-and-spoke network model; the pack ships a `cats.yaml` for each of the four deployment shapes (Control Tower or Organizations-only, CodePipeline or container).
-
-### Bug Fixes
-
-- **Controls Test Pack Collection Time**: Collecting the test suite no longer performs an STS `AssumeRole` and an S3 `HeadObject` for every policy file it reads. The test pack now resolves the deployed configuration directory once per process. Full collection drops from about 55 seconds to about 2 seconds, and `cats test -n auto` starts producing results within seconds instead of appearing to hang at `ready: N/N workers`.
-
-  **Upgrade Notes**: No change to the configuration files or to deployed resources. A redeployed configuration is still detected: each test process checks the configuration zip's ETag the first time it resolves the directory.
-
-### Improvements
-
-- **Transit Gateway Encryption Support (Optional)**: Added a commented-out `encryptionSupport` setting to the Transit Gateway in both networking models, and documentation for combining it with VPC Encryption Controls, enforced through an AWS Organizations declarative policy, to help enforce encryption in transit within a Region.
-
-  **Upgrade Notes**: No change to deployed resources. The setting requires LZA v1.17.0 or later; earlier versions ignore it. Before uncommenting it, review the requirements in the Networking documentation: enablement can take up to 14 days, and every VPC attached to a transit gateway with encryption support is charged for VPC Encryption Controls.
-
-## [1.3.3] - Unreleased
 
 ### Bug Fixes
 
@@ -39,6 +25,16 @@ When applying updates, review the changes in this release alongside your current
 - **AWS European Sovereign Cloud Account ID Placeholder**: Fixed the `accountIds` entry that the AWS European Sovereign Cloud configuration adds to `accounts-config.yaml`. The update marker after the quoted `accountId` value was not a YAML comment, so the file did not parse, before or after you replaced the placeholder account ID. The marker is now a comment.
 
   **Upgrade Notes**: No change to deployed resources. If you already corrected this line in your configuration, no action is required.
+
+- **Controls Test Pack Collection Time**: Collecting the test suite no longer performs an STS `AssumeRole` and an S3 `HeadObject` for every policy file it reads. The test pack now resolves the deployed configuration directory once per process. Full collection drops from about 55 seconds to about 2 seconds, and `cats test -n auto` starts producing results within seconds instead of appearing to hang at `ready: N/N workers`.
+
+  **Upgrade Notes**: No change to the configuration files or to deployed resources. A redeployed configuration is still detected: each test process checks the configuration zip's ETag the first time it resolves the directory.
+
+### Improvements
+
+- **Transit Gateway Encryption Support (Optional)**: Added a commented-out `encryptionSupport` setting to the Transit Gateway in both networking models, and documentation for combining it with VPC Encryption Controls, enforced through an AWS Organizations declarative policy, to help enforce encryption in transit within a Region.
+
+  **Upgrade Notes**: No change to deployed resources. The setting requires LZA v1.17.0 or later; earlier versions ignore it. Before uncommenting it, review the requirements in the Networking documentation: enablement can take up to 14 days, and every VPC attached to a transit gateway with encryption support is charged for VPC Encryption Controls.
 
 ## [1.3.2] - 2026-09-24
 
