@@ -206,7 +206,7 @@ def test_scp_agentcore_invoke_attachment_scope(policy_name: str, Management_acco
     assert_scp_attachment_scope(Management_account, policy_name)
 
 
-@cats(standard_name=["LZA-G-SCP-27"], test_suite="scp", test_id="27c", mutating=False, evidence=Evidence.BEHAVIORAL)
+@cats(standard_name=["LZA-G-SCP-27"], test_suite="scp", test_id="27c", mutating=True, evidence=Evidence.BEHAVIORAL)
 def test_scp_blocks_agentcore_invoke_from_non_vpc(SharedServices_account: SharedServicesAccount) -> None:
     """LZA-G-SCP-27: SCP denies AgentCore Runtime invocation from a non-VPC source."""
     # arrange - InvokeAgentRuntime lives on the bedrock-agentcore data-plane client,
@@ -226,9 +226,8 @@ def test_scp_blocks_agentcore_invoke_from_non_vpc(SharedServices_account: Shared
     fake_runtime_arn = f"arn:{partition}:bedrock-agentcore:{config.home_region}:{SharedServices_account.account_id}:runtime/{runtime_id}"
 
     # act & assert - bedrock-agentcore returns AccessDenied/AccessDeniedException
-    # when the SCP's condition-based deny blocks InvokeAgentRuntime. The test role
-    # grants this action explicitly and the matcher rejects identity-policy denials,
-    # so an AccessDenied here can only come from an SCP.
+    # when the SCP's condition-based deny blocks InvokeAgentRuntime. The matcher
+    # rejects identity-policy denials, so an AccessDenied here can only come from an SCP.
     with pytest.raises(ClientError, match=ACCESS_DENIED_NOT_BY_IDENTITY_POLICY):
         client.invoke_agent_runtime(
             agentRuntimeArn=fake_runtime_arn,
