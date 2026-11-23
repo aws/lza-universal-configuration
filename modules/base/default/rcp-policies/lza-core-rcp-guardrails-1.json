@@ -179,7 +179,7 @@
                 "s3:GetObject",
                 "s3:PutObject"
             ],
-            "Resource": "arn:${PARTITION}:s3:::aws-controltower-logs-${LOGARCHIVE_ACCOUNT_ID}-${HOME_REGION}/*",
+            "Resource": "arn:${PARTITION}:s3:::aws-controltower-*logs-${LOGARCHIVE_ACCOUNT_ID}-*/*",
             "Condition": {
                 "ForAllValues:StringNotEquals": {
                     "aws:CalledVia": [
