@@ -8,6 +8,18 @@ We highly recommend that you keep your environments up to date by upgrading to t
 
 When applying updates, review the changes in this release alongside your current configuration to decide which features from this version to adopt.
 
+## [1.4.1] - 2026-11-24
+
+### Bug Fixes
+
+- **Control Tower CloudTrail Log Bucket RCP (`GRS3OBJ`)**: Fixed the `GRS3OBJ` deny statement, which identified the AWS Control Tower CloudTrail log bucket by a fixed name that only exists on landing zones upgraded from version 3.x. On a landing zone 4.0 deployment AWS Control Tower generates a different bucket name, so the statement matched nothing and the organization trail's log objects were left unprotected. The statement now matches the AWS Control Tower log buckets in the CloudTrail administrator account under either naming.
+
+  **Upgrade Notes**: This change only widens the resource an existing Deny matches, so no reconfiguration is required. On a landing zone 4.0 deployment the statement takes effect for the first time, denying `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on the trail's log objects to principals other than AWS services, calls made through AWS Config or AWS CloudTrail, and the management account access role. Confirm that any tooling which reads those logs uses one of those paths.
+
+- **Controls Test Pack Enforcement Probe Classification**: Classified the SCP-27 `bedrock-agentcore:InvokeAgentRuntime` enforcement probe as mutating. The action appears only in the mutating test role's policy, so under the shipped read-only role the probe failed on an identity policy denial instead of recording `not_run`.
+
+  **Upgrade Notes**: None. Affects the Controls Test Pack only.
+
 ## [1.4.0] - 2026-11-04
 
 ### New Features
